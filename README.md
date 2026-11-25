@@ -2,7 +2,7 @@
 
 Yarpiz Evolutionary Algorithms (YPEA) is a toolbox for defining an optimization problem once and solving it with any of its metaheuristics. This is the Python version of [YPEA for MATLAB](https://github.com/smkalami/ypea), redesigned and with the known defects fixed.
 
-**Status:** early development (0.1.1). The core framework and four algorithms (PSO, DE, GA, SA) work. The other algorithms, benchmark suites, test problems and the experiment runner are being added.
+**Status:** early development (0.2.0). All 15 algorithms of YPEA for MATLAB and four modern baselines work. Benchmark suites, test problems and the experiment runner are being added.
 
 ## Install
 
@@ -40,6 +40,39 @@ de = ypea.DE(strategy="DE/best/2/bin", max_iter=1000, pop_size=20,
 result = de.solve(problem, seed=42)
 ```
 
+## Algorithms
+
+The 15 algorithms of YPEA for MATLAB, with their known defects fixed:
+
+| Class | Algorithm |
+|---|---|
+| `ABC` | Artificial Bee Colony |
+| `ACOR` | Ant Colony Optimization for Continuous Domains |
+| `BA` | Bees Algorithm (standard and probabilistic) |
+| `BBO` | Biogeography-based Optimization |
+| `CA` | Cultural Algorithm |
+| `CMAES` | Covariance Matrix Adaptation Evolution Strategy |
+| `DE` | Differential Evolution (rand, best, current-to-best, rand-to-best, bin and exp) |
+| `FA` | Firefly Algorithm |
+| `GA` | Genetic Algorithm |
+| `HS` | Harmony Search |
+| `ICA` | Imperialist Competitive Algorithm |
+| `IWO` | Invasive Weed Optimization |
+| `PSO` | Particle Swarm Optimization |
+| `SA` | Simulated Annealing |
+| `TLBO` | Teaching-Learning-based Optimization |
+
+Four modern baselines for benchmark comparisons:
+
+| Class | Algorithm |
+|---|---|
+| `JADE` | Adaptive Differential Evolution with external archive |
+| `SHADE` | Success-History based Adaptive Differential Evolution |
+| `LSHADE` | SHADE with Linear Population Size Reduction |
+| `IPOPCMAES` | CMA-ES with restarts and increasing population size |
+
+See `docs/differences-from-matlab.md` and `docs/new-algorithms.md` for details.
+
 ## Decision variables
 
 All variable types are encoded as numbers in [0, 1], so every algorithm can solve every problem. Decoded indices are 0 based.
@@ -74,7 +107,7 @@ problem = ypea.Problem(ypea.Real("x", shape=2, lb=-5, ub=5), evaluate)
 
 For this Python version (see `CITATION.cff`):
 
-Mostapha Kalami Heris, YPEA: Yarpiz Evolutionary Algorithms for Python, version 0.1.1, 2026. https://github.com/smkalami/ypea-python
+Mostapha Kalami Heris, YPEA: Yarpiz Evolutionary Algorithms for Python, version 0.2.0, 2026. https://github.com/smkalami/ypea-python
 
 For the original MATLAB toolbox:
 

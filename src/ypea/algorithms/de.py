@@ -33,7 +33,7 @@ def parse_strategy(text):
 
 
 class DE(Algorithm):
-    """Differential Evolution (Storn and Price, 1997).
+    """Differential Evolution (Storn and Price, 1995 and 1997).
 
     Parameters
     ----------
@@ -48,7 +48,11 @@ class DE(Algorithm):
     beta_min, beta_max : the scale factor is drawn uniformly from [beta_min, beta_max]
         for every component (dither), as in YPEA for MATLAB.
 
-    A trial vector replaces its target when it is at least as good (as in the paper).
+    A trial vector replaces its target when it is at least as good, the convention of Price,
+    Storn and Lampinen (2005), which helps on flat regions. The 1995 report replaces only
+    when the trial is strictly better. In exponential crossover, the number of copied
+    components L is 1 to d with P(L >= v) = CR^(v - 1), the 1997 rule. The 1995 report draws
+    L from 0 to d - 1, where L = 0 would waste an evaluation on an unchanged vector.
     All trial vectors of an iteration are built from the same population (synchronous).
     """
 

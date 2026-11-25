@@ -19,7 +19,10 @@ class Population:
 
     def __init__(self, X, F, V):
         self.X = np.asarray(X, dtype=float)
-        self.F = np.asarray(F, dtype=float).reshape(len(self.X), -1)
+        F = np.asarray(F, dtype=float)
+        # an empty population keeps the number of objectives (reshape(0, -1) is ambiguous)
+        m = F.shape[-1] if F.ndim == 2 else 1
+        self.F = F.reshape(len(self.X), -1) if len(self.X) else F.reshape(0, m)
         self.V = np.asarray(V, dtype=float).reshape(len(self.X))
 
     def __len__(self):

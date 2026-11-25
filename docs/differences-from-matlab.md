@@ -54,4 +54,80 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 - With constraints, the Metropolis rule uses the difference in violation when a solution is infeasible.
 - When only `max_nfe` is set, the cooling schedule is fitted to the number of iterations the budget allows.
 
-The other algorithms are not ported yet.
+### CMA-ES
+
+- Rewritten from Hansen's tutorial (2016). Only the current mean, covariance, paths and step size are kept, so memory no longer grows with `max_iter` (A9).
+- `mu` is computed from the population size in effect when the run starts (A8). MATLAB fixed it at construction from the default population size.
+- The step size update is the standard one. The extra power of 0.3 in MATLAB is gone (A10).
+- `pop_size=None` (the default) gives the standard 4 + floor(3 ln n). MATLAB used 100.
+- Samples outside [0, 1] are reflected back at the bounds, and the reflected points are used for the update. MATLAB clipped them, which distorted the distribution (A10).
+- The mean is no longer evaluated every iteration. Only the initial mean is evaluated once.
+- New settings: `sigma0` (MATLAB fixed it at 0.3), `x0` (initial mean).
+- Recombination weights and learning rates follow Table 1 of the tutorial (equations 48 to 58) with positive weights only.
+
+### IWO
+
+- The step size follows the paper's nonlinear schedule from `step_size` to `final_step_size` with `modulation_index`. MATLAB multiplied the step size by `step_size_damp = 0.001` every iteration, which stopped the search after one or two iterations (A13).
+- `initial_pop_size` is used (A14). MATLAB started with `pop_size` weeds.
+- Seed counts follow the paper (linear between the worst and best objective value). When all weeds have the same value, every weed gets the maximum number of seeds (MATLAB divided by zero, A11).
+- With constraints, seed counts come from ranks (`fitness="auto"`, the default). `fitness="paper"` or `fitness="rank"` force one rule.
+
+### ABC
+
+- An employed or onlooker bee changes one random component: v_j = x_j + phi (x_j - x_kj), with phi uniform in [-max_acceleration, max_acceleration], as in the paper. MATLAB changed every component.
+- A source's trial counter resets to 0 when the source improves. MATLAB never reset it.
+- At most one scout per iteration: the source with the largest trial counter, if it has reached the limit. MATLAB replaced every source at the limit.
+- Onlooker probabilities use the paper's fitness, 1/(1 + f) for f >= 0 and 1 + |f| otherwise (F2). With constraints, ranks are used (`fitness="auto"`, the default). `fitness="paper"` or `"rank"` force one rule.
+- The default number of onlookers is `pop_size` (the paper's SN), and the default trial limit is onlookers times the number of codes, as in Karaboga (2005, Table 2). MATLAB used 100 onlookers and round(0.6 * d * pop_size). Both can be set (`onlooker_count`, `trial_limit`).
+- Both bee phases are evaluated as one batch. Each source keeps the best candidate its onlookers found, if it is better.
+
+### ACOR
+
+- Each new solution picks one guiding solution from the archive and samples all its components from it. MATLAB picked a new guide for each component.
+- When objective values tie, archive members are kept first.
+
+### BA
+
+- Maximization works (A5). MATLAB crashed on every maximization problem.
+- The probabilistic mode scores sites by rank instead of `1 ./ obj_values` (A6). The scores still average 1, and the rejection thresholds (0.6, 0.2, 0.05, 0) are unchanged. This mode follows YPEA for MATLAB.
+- In the standard mode, every recruited bee is drawn uniformly from the patch around its site (all components), as in Pham et al. MATLAB changed one random component, which works much better in many dimensions (about 1e-3 against 0.15 on the 10D sphere). `neighborhood="component"` gives the MATLAB move. The probabilistic mode keeps the one component move.
+- A site moves to its best recruited bee only when it is strictly better.
+
+### BBO
+
+- The default `alpha` is 1, which copies the immigrating feature as in Simon (2008). `alpha=0.9` gives the MATLAB blend.
+- The migration source is never the habitat itself. Populations of one or two habitats no longer divide by zero.
+- `keep_rate` and `mutation_prob` must be in [0, 1].
+
+### CA
+
+- Influence types 2, 3 and 4 change only component j with the step for component j (A4). MATLAB added the step to the whole position vector inside the loop over j.
+- Survivors are selected from parents and offspring (the best `pop_size` survive), following the select step of the cultural algorithm. MATLAB had no selection, and the default influence type did not converge (about 60 to 70 on the 10D sphere). `selection=False` gives the MATLAB scheme.
+- The belief space (normative and situational knowledge) is updated with the problem's comparison rules, so maximization and constraints work.
+- At least one solution is accepted, even when `round(accept_rate * pop_size)` is 0.
+- The four influence types keep the YPEA for MATLAB definitions.
+
+### FA
+
+- A firefly moves only toward strictly brighter fireflies (A12). The brightest firefly makes a random walk of `alpha * delta * U(-1, 1)`, as in the paper.
+- Each firefly moves toward every brighter firefly in turn, and the moves add up. It is evaluated once after all its moves, so an iteration costs `pop_size` evaluations. MATLAB evaluated one candidate per brighter firefly (up to `pop_size` squared evaluations) and kept only the best.
+
+### HS
+
+- The damped bandwidth is used for pitch adjustment, so `fret_width_damp` has an effect (A3).
+- Pitch adjustment adds `bandwidth * U(-1, 1)`, as in Lee and Geem (2005). MATLAB used a normal distribution.
+- `fret_width_damp=1` and `new_count=1` give the paper's fixed bandwidth and one new harmony per iteration.
+
+### ICA
+
+- Empire power and the imperialistic competition use rank based costs, so they work for maximization, any objective scale, and constraints (F2). The total cost of an empire is c(imperialist) + zeta * mean(c(colonies)), where c is the normalized rank from 0 (best) to 1 (worst).
+- A collapsed empire's imperialist really becomes a colony of the winning empire (A7).
+- The initial colonies are split in proportion to the imperialists' power, as in the paper. MATLAB drew the empire of each colony at random.
+- A colony that revolts is evaluated once. MATLAB evaluated it twice.
+- Each iteration evaluates exactly `pop_size` solutions.
+
+### TLBO
+
+- Each phase updates all learners at once (synchronous). MATLAB updated them one by one.
+- A learner moves away from its partner only if it is strictly better than the partner, otherwise toward it, as in the paper.
+- `pop_size` must be at least 2.

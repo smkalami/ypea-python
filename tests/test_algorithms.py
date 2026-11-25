@@ -1,30 +1,26 @@
 """Checks every algorithm must pass (sphere convergence, maximization, every variable type, budget, reproducibility)."""
 
+import importlib
 import pickle
+import pkgutil
 
+import cases
 import numpy as np
 import pytest
 from problems import neg_sphere_obj
 
 import ypea
 
-# (algorithm, sphere tolerance at 20 000 evaluations in 10 dimensions)
-CASES = {
-    "PSO": (lambda **k: ypea.PSO(w=0.5, wdamp=1, c1=1, c2=2, **k), 1e-5),
-    "PSO-constriction": (lambda **k: ypea.PSO(**k).use_constriction_coeffs(), 1e-3),
-    "DE/rand/1/bin": (lambda **k: ypea.DE(**k), 0.1),
-    "DE/best/2/bin": (lambda **k: ypea.DE("DE/best/2/bin", **k), 0.1),
-    "DE/current-to-best/1/exp": (lambda **k: ypea.DE("DE/current-to-best/1/exp", crossover_prob=0.9, **k), 1e-5),
-    "DE/rand-to-best/1/bin": (lambda **k: ypea.DE("DE/rand-to-best/1/bin", **k), 1e-3),
-    "GA": (lambda **k: ypea.GA(**k), 0.05),
-    "GA-tournament": (lambda **k: ypea.GA(selection="tournament", **k), 0.05),
-    "SA": (lambda **k: ypea.SA(initial_temp=10, final_temp=1e-4, **k), 1.0),
-}
-NAMES = list(CASES)
+CASES, POP_SIZE = {}, {}
+for info in pkgutil.iter_modules(cases.__path__):
+    mod = importlib.import_module(f"cases.{info.name}")
+    CASES.update(mod.CASES)
+    POP_SIZE.update(getattr(mod, "POP_SIZE", {}))
+NAMES = sorted(CASES)
 
 
 def make(name, **kw):
-    kw.setdefault("pop_size", 10 if name == "SA" else 40)
+    kw.setdefault("pop_size", POP_SIZE.get(name, 40))
     return CASES[name][0](**kw)
 
 

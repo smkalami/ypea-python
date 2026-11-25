@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..algorithm import Algorithm, check, is_real
+from ..algorithm import Algorithm, check, is_int, is_real
 
 _SELECTION = {"random": "random", "rand": "random",
               "roulettewheel": "roulettewheel", "roulette": "roulettewheel", "rw": "roulettewheel",
@@ -63,7 +63,7 @@ class GA(Algorithm):
         check(self.selection in _SELECTION.values(),
               "selection must be 'roulettewheel', 'tournament' or 'random'")
         check(is_real(self.selection_pressure, 0), "selection_pressure must be non negative")
-        check(isinstance(self.tournament_size, int) and self.tournament_size >= 1,
+        check(is_int(self.tournament_size, 1),
               "tournament_size must be a positive integer")
 
     def initialize(self):

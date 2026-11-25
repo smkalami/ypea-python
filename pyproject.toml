@@ -39,6 +39,8 @@ include = ["src/ypea", "tests", "README.md", "LICENSE", "CITATION.cff"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["slow: long benchmark style tests, skipped locally, run in CI"]
+addopts = "-m 'not slow'"
 
 [tool.ruff]
 line-length = 120

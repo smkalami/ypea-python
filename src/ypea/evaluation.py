@@ -30,6 +30,7 @@ class Evaluator:
         self.best = None  # Population of length 1
         self.trace_nfe, self.trace_f, self.trace_v = [], [], []
         self.stop_reason = None
+        self.constrained = False  # set when the objective returns (f, g)
 
     def __call__(self, X) -> Population:
         X = np.clip(np.atleast_2d(np.asarray(X, dtype=float)), 0.0, 1.0)
@@ -50,12 +51,13 @@ class Evaluator:
     def _evaluate(self, X):
         p = self.problem
         if p.vectorized:
-            return parse_batch(p.objective(p.decode(X)), len(X))
+            raw = p.objective(p.decode(X))
+            self.constrained |= isinstance(raw, tuple)
+            return parse_batch(raw, len(X))
         sols = p.decode(X)
-        if self.executor is None:
-            out = [parse_result(p.objective(s)) for s in sols]
-        else:
-            out = [parse_result(r) for r in self.executor.map(p.objective, sols)]
+        raw = list(map(p.objective, sols)) if self.executor is None else list(self.executor.map(p.objective, sols))
+        self.constrained |= any(isinstance(r, tuple) for r in raw)
+        out = [parse_result(r) for r in raw]
         F, V = zip(*out, strict=True)
         return np.array(F), np.array(V)
 

@@ -68,6 +68,9 @@ class Algorithm:
     #: iterations used when no limit at all is given
     default_max_iter = 100
 
+    #: True for algorithms that choose their own population size when pop_size is None
+    auto_pop_size = False
+
     @property
     def iter_limit(self):
         """The iteration limit in effect: ``max_iter``, or 100 when no limit is set at all."""
@@ -108,7 +111,8 @@ class Algorithm:
     def validate(self):
         """Check the settings. Subclasses extend it and call ``super().validate()``."""
         check(self.max_iter is None or is_int(self.max_iter, 1), "max_iter must be a positive integer or None")
-        check(is_int(self.pop_size, 1), "pop_size must be a positive integer")
+        check(is_int(self.pop_size, 1) or (self.auto_pop_size and self.pop_size is None),
+              "pop_size must be a positive integer" + (" or None" if self.auto_pop_size else ""))
         check(self.max_nfe is None or is_int(self.max_nfe, 1), "max_nfe must be a positive integer or None")
         check(self.target is None or is_real(self.target), "target must be a number or None")
         check(self.max_time is None or is_real(self.max_time, 0), "max_time must be a positive number or None")
@@ -137,6 +141,7 @@ class Algorithm:
         self.iter = 0
         self.pop = None
         self._hist = []
+        self._stop_request = None
         self._t0 = time.perf_counter()
         stop_reason = None
 
@@ -153,6 +158,9 @@ class Algorithm:
             nfe_before = self.nfe
             self.iterate()
             self._record()
+            if self._stop_request:
+                stop_reason = self._stop_request
+                break
             if self.nfe == nfe_before:
                 # settings that create no new solutions (for example GA with pop_size=1)
                 stop_reason = "no_evaluations"
@@ -175,7 +183,13 @@ class Algorithm:
     def iterate(self):
         raise NotImplementedError
 
+    def request_stop(self, reason: str):
+        """Stop the run after the current iteration, with ``reason`` as the stop reason."""
+        self._stop_request = reason
+
     def _stop_reason(self):
+        if self._stop_request:
+            return self._stop_request
         if self.evaluator.stop_reason:
             return self.evaluator.stop_reason
         if self.iter_limit is not None and self.iter >= self.iter_limit:
@@ -214,6 +228,15 @@ class Algorithm:
     @property
     def dim(self) -> int:
         return self.problem.code_size
+
+    @property
+    def constrained(self) -> bool:
+        """True once the objective has returned constraint values (known after initialization)."""
+        return self.evaluator.constrained
+
+    def min_keys(self, pop: Population) -> np.ndarray:
+        """Objective values turned into "smaller is better" (negated for maximization)."""
+        return self.problem.comparator.sign * pop.F[:, 0]
 
     def evaluate(self, X) -> Population:
         """Evaluate codes (clipped to [0, 1]). Always returns as many rows as ``X``."""
