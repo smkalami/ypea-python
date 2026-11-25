@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use YPEA in your research, please cite it as below."
+title: "YPEA: Yarpiz Evolutionary Algorithms for Python"
+type: software
+authors:
+  - family-names: "Kalami Heris"
+    given-names: "Mostapha"
+version: 0.1.0
+date-released: 2026-11-25
+license: MIT
+repository-code: "https://github.com/smkalami/ypea-python"
+keywords:
+  - optimization
+  - metaheuristics
+  - evolutionary algorithms
+  - swarm intelligence
+references:
+  - type: software
+    title: "Yarpiz Evolutionary Algorithms Toolbox for MATLAB (YPEA)"
+    authors:
+      - family-names: "Kalami Heris"
+        given-names: "Mostapha"
+    year: 2020
+    repository-code: "https://github.com/smkalami/ypea"

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ypea"
-version = "0.1.0.dev0"
+dynamic = ["version"]
 description = "Yarpiz Evolutionary Algorithms: define an optimization problem once, solve it with any metaheuristic."
 readme = "README.md"
 license = "MIT"
@@ -28,11 +28,14 @@ dev = ["pytest>=8", "ruff>=0.6"]
 Source = "https://github.com/smkalami/ypea-python"
 "MATLAB version" = "https://github.com/smkalami/ypea"
 
+[tool.hatch.version]
+path = "src/ypea/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/ypea"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/ypea", "tests", "README.md", "LICENSE"]
+include = ["src/ypea", "tests", "README.md", "LICENSE", "CITATION.cff"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
