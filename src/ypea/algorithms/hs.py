@@ -20,7 +20,8 @@ class HS(Algorithm):
 
     Parameters
     ----------
-    pop_size : harmony memory size (HMS), 10 by default. ``hms`` is an alias.
+    pop_size : harmony memory size (HMS), 10 by default. ``hms`` is an alias attribute
+        (read and set after construction).
     new_count : number of new harmonies per iteration. The original algorithm creates
         one harmony per iteration and replaces the worst one if it is better, which is
         the case ``new_count=1``.

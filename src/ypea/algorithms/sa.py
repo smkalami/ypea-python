@@ -25,9 +25,12 @@ class SA(Algorithm):
     mutation_step_size : standard deviation of the Gaussian move (in code units)
     mutation_step_size_damp : the step size is multiplied by this after every iteration
 
-    When the problem has constraints and either solution is infeasible, delta is the
-    difference in constraint violation instead of objective value. The temperature is
-    in the units of the objective, so set ``initial_temp`` to match its scale.
+    delta follows the problem's comparison rules. With feasibility rules (the default) it
+    is the difference in constraint violation when the violations differ, and the
+    difference in objective value otherwise (so also for two feasible solutions). With
+    a penalty it is the difference in penalized objective. The temperature is in those
+    units, so set ``initial_temp`` to match the scale of the objective. The temperature
+    never falls below ``final_temp``, even when the run lasts longer than planned.
 
     Reference: Kirkpatrick, Gelatt and Vecchi (1983).
     """
@@ -81,13 +84,15 @@ class SA(Algorithm):
             ranks = self.ranks(moves).reshape(n, m)
             cand = moves[np.arange(n) * m + np.argmin(ranks, axis=1)]
             accept = self.better(cand, self.pop)
-            feasible = (cand.V <= 0) & (self.pop.V <= 0)
-            delta = np.where(feasible,
-                             cmp.sign * (cand.F[:, 0] - self.pop.F[:, 0]),
-                             cand.V - self.pop.V)
+            # delta from the comparator keys, so "worse" means the same as everywhere else:
+            # the primary key difference, or the secondary one when the primary keys are equal.
+            # inf - inf gives NaN, which counts as an infinitely worse move (never accepted).
+            pc, sc = cmp.keys(cand.F, cand.V)
+            po, so = cmp.keys(self.pop.F, self.pop.V)
             with np.errstate(invalid="ignore", over="ignore"):
+                delta = np.where(pc == po, sc - so, pc - po)
                 p = np.exp(-np.nan_to_num(delta, nan=np.inf, posinf=np.inf) / self._temp)
             accept |= self.rng.random(n) < p
             self.pop.replace(accept, cand)
-        self._temp *= self._temp_damp
+        self._temp = max(self._temp * self._temp_damp, self.final_temp)
         self._sigma *= self.mutation_step_size_damp

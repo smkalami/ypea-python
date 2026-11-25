@@ -277,7 +277,9 @@ class LSHADE(_HistoryDE):
     Works like SHADE with three changes from the paper. The pbest rate p is fixed. CR is
     updated with the weighted Lehmer mean, and a slot gets the terminal value (shown as NaN
     in ``m_cr``) when it already has it or when all successful CR values are 0. Trial
-    vectors from a terminal slot use CR = 0. After each iteration the population size
+    vectors from a terminal slot use CR = 0. If the weighted Lehmer mean of CR is undefined
+    (every success with CR > 0 has weight 0), the slot keeps its values and k still
+    advances. After each iteration the population size
     becomes round(N_init + (N_min - N_init) * progress), and the worst members are removed.
 
     The progress is ``nfe / max_nfe`` when ``max_nfe`` is set, as in the paper. Without

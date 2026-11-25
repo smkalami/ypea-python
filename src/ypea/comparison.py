@@ -33,6 +33,8 @@ class Comparator:
             raise ValueError("constraints must be 'feasibility' or 'penalty'")
         self.constraint_handling = constraint_handling
         self.penalty = float(penalty)
+        if not self.penalty >= 0:
+            raise ValueError("penalty must be non negative")
 
     @property
     def worst_value(self) -> float:

@@ -46,7 +46,8 @@ class DE(Algorithm):
     crossover_method : "bin" or "exp"
     crossover_prob : crossover rate CR
     beta_min, beta_max : the scale factor is drawn uniformly from [beta_min, beta_max]
-        for every component (dither), as in YPEA for MATLAB.
+        for every component (jitter, in the terms of Price, Storn and Lampinen), as in YPEA
+        for MATLAB.
 
     A trial vector replaces its target when it is at least as good, the convention of Price,
     Storn and Lampinen (2005), which helps on flat regions. The 1995 report replaces only

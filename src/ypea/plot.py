@@ -30,9 +30,8 @@ def convergence(*results, x="nfe", log=None, ax=None, labels=None, error=False):
         h = r.history
         if x == "nfe":
             xs, ys = np.r_[h.trace_nfe, r.nfe], np.r_[h.trace_obj_value, h.trace_obj_value[-1]]
-            draw = ax.step
         elif x in ("iter", "iteration"):
-            xs, ys, draw = h.iteration, h.best_obj_value, ax.plot
+            xs, ys = h.iteration, h.best_obj_value
         else:
             raise ValueError("x must be 'nfe' or 'iter'")
         if error:
@@ -40,10 +39,11 @@ def convergence(*results, x="nfe", log=None, ax=None, labels=None, error=False):
                 raise ValueError("error=True needs a problem with a known optimum")
             ys = np.abs(ys - r.optimum)
         label = labels[k] if labels else r.algorithm
-        if draw is ax.step:
-            draw(xs, ys, where="post", label=label)
+        if x == "nfe":
+            # the best value holds from the evaluation that found it onward
+            ax.step(xs, ys, where="post", label=label)
         else:
-            draw(xs, ys, label=label)
+            ax.plot(xs, ys, label=label)
         all_y.append(ys)
     y = np.concatenate(all_y)
     if log is None:

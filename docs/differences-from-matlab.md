@@ -25,8 +25,8 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 | Evaluation budget (F3) | `max_nfe` is checked after each iteration, so it can be exceeded. | Never exceeded. Rows past the budget are not evaluated. |
 | Best solution | Each algorithm updates it, some only once per iteration. | Updated after every evaluation by the framework. The exact trace of improvements is kept. |
 | Selection probabilities (F2) | `exp(-beta * f)` on raw objective values. Overflows, and depends on the scale and sign of `f`. | Based on ranks, so independent of scale and sign. |
-| Reproducibility (F5) | Uses the global random state. | `solve(problem, seed=...)`. The same seed gives the same result. |
-| Evaluation | One solution at a time. | Also vectorized (`vectorized=True`) or parallel (`executor=`). NaN objective or constraint values count as the worst possible. |
+| Reproducibility (F5) | Uses the global random state. | `solve(problem, seed=...)`. The same seed gives the same result. `seed=ypea.StudioRng(n)` draws the same numbers as YPEA Studio. |
+| Evaluation | One solution at a time. | Also vectorized (`vectorized=True`) or parallel (`executor=`). Objective values that are not finite (NaN, inf and -inf) count as the worst possible, and NaN constraint values as infinite violation. |
 | Display | On by default, one line per iteration. | Off by default. Use `display=True` or `callbacks=[ypea.callbacks.Print()]`. |
 | Plots | Methods of the algorithm class. | `ypea.plot.convergence(result)`. |
 
@@ -51,7 +51,7 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 ### SA
 
 - Each solution keeps the best of its own `move_count` moves and compares it with itself. In MATLAB the k-th best move of the whole population was compared with the k-th solution, which mixed unrelated solutions.
-- With constraints, the Metropolis rule uses the difference in violation when a solution is infeasible.
+- The Metropolis rule follows the problem's comparison rules: with feasibility rules, the difference in violation when the violations differ, otherwise the difference in objective. With a penalty, the difference in penalized objective. The temperature never falls below `final_temp`.
 - When only `max_nfe` is set, the cooling schedule is fitted to the number of iterations the budget allows.
 
 ### CMA-ES
@@ -67,7 +67,7 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 
 ### IWO
 
-- The step size follows the paper's nonlinear schedule from `step_size` to `final_step_size` with `modulation_index`. MATLAB multiplied the step size by `step_size_damp = 0.001` every iteration, which stopped the search after one or two iterations (A13).
+- The step size follows the paper's nonlinear schedule from `step_size` to `final_step_size` with `modulation_index`, over the whole run (the share of `max_nfe`, `max_iter` or `max_time` used, whichever is largest). MATLAB multiplied the step size by `step_size_damp = 0.001` every iteration, which stopped the search after one or two iterations (A13).
 - `initial_pop_size` is used (A14). MATLAB started with `pop_size` weeds.
 - Seed counts follow the paper (linear between the worst and best objective value). When all weeds have the same value, every weed gets the maximum number of seeds (MATLAB divided by zero, A11).
 - With constraints, seed counts come from ranks (`fitness="auto"`, the default). `fitness="paper"` or `fitness="rank"` force one rule.
@@ -104,7 +104,7 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 - Influence types 2, 3 and 4 change only component j with the step for component j (A4). MATLAB added the step to the whole position vector inside the loop over j.
 - Survivors are selected from parents and offspring (the best `pop_size` survive), following the select step of the cultural algorithm. MATLAB had no selection, and the default influence type did not converge (about 60 to 70 on the 10D sphere). `selection=False` gives the MATLAB scheme.
 - The belief space (normative and situational knowledge) is updated with the problem's comparison rules, so maximization and constraints work.
-- At least one solution is accepted, even when `round(accept_rate * pop_size)` is 0.
+- At least two solutions are accepted. With one, the normative intervals have zero width and the search stalls.
 - The four influence types keep the YPEA for MATLAB definitions.
 
 ### FA

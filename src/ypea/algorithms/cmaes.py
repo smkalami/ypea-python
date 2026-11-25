@@ -73,7 +73,12 @@ class CMAES(Algorithm):
         self.damps = 1 + 2 * max(0.0, np.sqrt((me - 1) / (n + 1)) - 1) + self.cs
         self.chi_n = np.sqrt(n) * (1 - 1 / (4 * n) + 1 / (21 * n**2))
 
-        self.mean = self.rng.random(n) if self.x0 is None else np.clip(np.asarray(self.x0, float), 0, 1)
+        if self.x0 is None:
+            self.mean = self.rng.random(n)
+        else:
+            x0 = np.asarray(self.x0, float)
+            check(x0.shape == (n,), f"x0 must be a code vector of length {n}, got shape {x0.shape}")
+            self.mean = np.clip(x0, 0, 1)
         self.sigma = float(self.sigma0)
         self.C = np.eye(n)
         self.B = np.eye(n)

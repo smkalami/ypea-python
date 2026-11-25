@@ -41,6 +41,8 @@ include = ["src/ypea", "tests", "README.md", "LICENSE", "CITATION.cff"]
 testpaths = ["tests"]
 markers = ["slow: long benchmark style tests, skipped locally, run in CI"]
 addopts = "-m 'not slow'"
+# numeric warnings point to hidden NaN or overflow problems, so they fail the tests
+filterwarnings = ["error::RuntimeWarning"]
 
 [tool.ruff]
 line-length = 120

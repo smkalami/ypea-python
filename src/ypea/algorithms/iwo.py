@@ -25,9 +25,11 @@ class IWO(Algorithm):
         formula, but switches to ranks when the problem has constraints, because an
         infeasible solution has no meaningful objective value.
 
-    The step size at iteration t of T is
-    ((T - t) / T) ** modulation_index * (step_size - final_step_size) + final_step_size,
-    where T is the planned number of iterations.
+    The step size is (1 - u) ** modulation_index * (step_size - final_step_size)
+    + final_step_size, where u goes from 0 to 1 over the run (``progress()``: the share of
+    ``max_nfe``, ``max_iter`` or ``max_time`` used, whichever is largest). So the step
+    reaches final_step_size when the run ends, however it is limited. Weeds with an
+    infinite or NaN objective value get min_seed_count seeds.
     """
 
     name = "Invasive Weed Optimization"
@@ -53,8 +55,6 @@ class IWO(Algorithm):
 
     def initialize(self):
         self.pop = self.random_population(self.initial_pop_size)
-        mean_seeds = (self.min_seed_count + self.max_seed_count) / 2
-        self._planned = self.planned_iterations(self.pop_size * max(mean_seeds, 1))
 
     def seed_ratio(self):
         """For each weed, a number in [0, 1]: 0 for the worst weed, 1 for the best."""
@@ -63,14 +63,17 @@ class IWO(Algorithm):
         if use_ranks:
             return 1 - self.ranks(self.pop) / max(n - 1, 1)
         k = self.min_keys(self.pop)
-        best, worst = k.min(), k.max()
-        if not np.isfinite(worst - best) or worst == best:
+        finite = np.isfinite(k)
+        if not finite.any():
             return np.ones(n)
-        return (worst - k) / (worst - best)
+        best, worst = k[finite].min(), k[finite].max()
+        if worst == best:
+            return np.where(finite, 1.0, 0.0)
+        # weeds with infinite or NaN values get no seeds
+        return np.where(finite, (worst - np.where(finite, k, worst)) / (worst - best), 0.0)
 
     def step(self):
-        t, T = self.iter - 1, self._planned
-        frac = max(T - t, 0) / T
+        frac = 1.0 - self.progress()
         return frac**self.modulation_index * (self.step_size - self.final_step_size) + self.final_step_size
 
     def iterate(self):

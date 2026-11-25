@@ -11,6 +11,7 @@ import numpy as np
 from .evaluation import Evaluator
 from .population import Individual, Population
 from .problem import Problem
+from .random import StudioRng
 from .result import History, Result
 
 
@@ -86,6 +87,19 @@ class Algorithm:
             limits.append(int(np.ceil(self.max_nfe / max(evals_per_iter, 1))))
         return max(min(limits), 1) if limits else self.default_max_iter
 
+    def progress(self) -> float:
+        """Fraction of the run used before the current iteration, from 0 to 1: the largest
+        of nfe / max_nfe, (iter - 1) / (iteration limit - 1) and elapsed / max_time. Use it
+        for schedules that must end when the run ends, whichever limit stops it."""
+        parts = []
+        if self.max_nfe is not None:
+            parts.append(self.nfe / self.max_nfe)
+        if self.iter_limit is not None:
+            parts.append((self.iter - 1) / max(self.iter_limit - 1, 1))
+        if self.max_time is not None:
+            parts.append((time.perf_counter() - self._t0) / self.max_time)
+        return float(min(max(parts), 1.0)) if parts else 0.0
+
     @property
     def full_name(self):
         return f"{self.name} ({self.short_name})"
@@ -122,8 +136,10 @@ class Algorithm:
     def solve(self, problem: Problem, *, seed=None, callbacks=(), executor=None) -> Result:
         """Solve ``problem`` and return a ``Result``.
 
-        seed : int, numpy Generator, or None
-            The same seed gives the same result.
+        seed : int, numpy Generator, ypea.StudioRng, or None
+            The same integer seed gives the same result. (A NumPy Generator is consumed by
+            the run.) A ``StudioRng`` draws the same numbers as YPEA Studio, and each run
+            starts its stream from the beginning, so the same object gives the same result.
         callbacks : list of callables
             Each is called as ``cb(algorithm)`` after every iteration. A callback that
             returns True stops the run. Objects may also define ``on_start(algorithm)``
@@ -136,7 +152,8 @@ class Algorithm:
         self.validate()
         self.problem = problem
         self.seed = seed
-        self.rng = np.random.default_rng(seed)
+        # a StudioRng starts a fresh stream at position 0, so the same object repeats the run
+        self.rng = StudioRng(seed.seed) if isinstance(seed, StudioRng) else np.random.default_rng(seed)
         self.evaluator = Evaluator(problem, self.max_nfe, self.target, executor)
         self.iter = 0
         self.pop = None

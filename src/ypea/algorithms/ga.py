@@ -103,7 +103,7 @@ class GA(Algorithm):
             p = self.select(nc)
             y1, y2 = self.crossover(self.pop.X[p[0::2]], self.pop.X[p[1::2]])
             children.append(self.evaluate(np.vstack([y1, y2])))
-        if nm:
+        if nm and self.mutation_rate > 0:  # rate 0 would only make clones
             children.append(self.evaluate(self.mutate(self.pop.X[self.rng.integers(len(self.pop), size=nm)])))
         merged = self.pop.concat(self.pop, *children)
         self.pop = self.sort(merged)[:n] if len(merged) > n else self.sort(merged)

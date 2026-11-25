@@ -76,7 +76,8 @@ class ABC(Algorithm):
         self.pop = self.random_population()
         self.trials = np.zeros(self.pop_size, dtype=int)
         self._onlookers = self.pop_size if self.onlooker_count is None else self.onlooker_count
-        self._limit = self.trial_limit or max(self._onlookers * self.dim, 1)
+        # the paper's limit is SN * D (onlookers = SN). Without onlookers, use SN * D directly
+        self._limit = self.trial_limit or max((self._onlookers or self.pop_size) * self.dim, 1)
 
     def probs(self):
         """Onlooker selection probabilities of the food sources."""

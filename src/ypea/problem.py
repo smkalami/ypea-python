@@ -39,7 +39,7 @@ class Problem:
         Penalty coefficient, used with ``constraints="penalty"``.
     name : str, optional
     optimum : float, optional
-        Known optimal objective value. Results then report the error ``f - optimum``.
+        Known optimal objective value. Results then report the error ``|f - optimum|``.
     """
 
     def __init__(self, vars, objective, sense="min", *, vectorized=False,
@@ -109,14 +109,24 @@ def parse_result(out):
     if isinstance(out, tuple):
         f, g = out
         g = np.asarray(g, dtype=float)
-        return float(f), float(np.maximum(g, 0).sum())
-    return float(out), 0.0
+        return _scalar(f), float(np.maximum(g, 0).sum())
+    return _scalar(out), 0.0
+
+
+def _scalar(f):
+    try:
+        return float(np.asarray(f, dtype=float).item())
+    except ValueError:
+        raise ValueError(f"the objective must return one number, got shape {np.shape(f)}") from None
 
 
 def parse_batch(out, n):
     """Turn a vectorized objective return value into arrays F (n,) and V (n,)."""
     if isinstance(out, tuple):
         f, g = out
-        g = np.asarray(g, dtype=float).reshape(n, -1)
+        g = np.asarray(g, dtype=float)
+        if g.ndim == 0 or g.shape[0] != n:
+            raise ValueError(f"vectorized constraint values must have shape ({n},) or ({n}, m), got {g.shape}")
+        g = g.reshape(n, -1)
         return np.asarray(f, dtype=float).reshape(n), np.maximum(g, 0).sum(axis=1)
     return np.asarray(out, dtype=float).reshape(n), np.zeros(n)

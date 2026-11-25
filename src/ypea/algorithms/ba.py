@@ -54,7 +54,8 @@ class BA(Algorithm):
         r. "component" changes one random component by r * U(-1, 1), as in YPEA for
         MATLAB, which works much better on problems with many components.
 
-    Derived counts are rounded half away from zero, as in MATLAB.
+    Derived counts are rounded half away from zero, as in MATLAB. Bee counts per site are
+    at least 1, so small populations still search their sites.
 
     Differences from the paper: the 2006 paper keeps the neighborhood size fixed. The
     damping of r comes from YPEA for MATLAB (``dance_radius_damp=1`` gives a fixed size).
@@ -108,7 +109,7 @@ class BA(Algorithm):
 
     @property
     def selected_site_bee_count(self):
-        return _round(self.selected_site_bee_ratio * self.scout_bee_count)
+        return max(1, _round(self.selected_site_bee_ratio * self.scout_bee_count))  # at least one bee
 
     @property
     def elite_site_count(self):
@@ -120,7 +121,7 @@ class BA(Algorithm):
 
     @property
     def recruited_bee_count(self):
-        return _round(self.recruited_bee_ratio * self.scout_bee_count)
+        return max(1, _round(self.recruited_bee_ratio * self.scout_bee_count))  # at least one bee
 
     def initialize(self):
         self.pop = self.sort(self.random_population())

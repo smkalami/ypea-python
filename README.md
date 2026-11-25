@@ -2,7 +2,7 @@
 
 Yarpiz Evolutionary Algorithms (YPEA) is a toolbox for defining an optimization problem once and solving it with any of its metaheuristics. This is the Python version of [YPEA for MATLAB](https://github.com/smkalami/ypea), redesigned and with the known defects fixed.
 
-**Status:** early development (0.2.0). All 15 algorithms of YPEA for MATLAB and four modern baselines work. Benchmark suites, test problems and the experiment runner are being added.
+**Status:** early development (0.3.0). All 15 algorithms of YPEA for MATLAB and four modern baselines work. Benchmark suites, test problems and the experiment runner are being added.
 
 ## Install
 
@@ -71,6 +71,8 @@ Four modern baselines for benchmark comparisons:
 | `LSHADE` | SHADE with Linear Population Size Reduction |
 | `IPOPCMAES` | CMA-ES with restarts and increasing population size |
 
+Two reference methods: `RandomSearch` and `NelderMead` (downhill simplex with restarts).
+
 See `docs/differences-from-matlab.md` and `docs/new-algorithms.md` for details.
 
 ## Decision variables
@@ -107,7 +109,7 @@ problem = ypea.Problem(ypea.Real("x", shape=2, lb=-5, ub=5), evaluate)
 
 For this Python version (see `CITATION.cff`):
 
-Mostapha Kalami Heris, YPEA: Yarpiz Evolutionary Algorithms for Python, version 0.2.0, 2026. https://github.com/smkalami/ypea-python
+Mostapha Kalami Heris, YPEA: Yarpiz Evolutionary Algorithms for Python, version 0.3.0, 2026. https://github.com/smkalami/ypea-python
 
 For the original MATLAB toolbox:
 

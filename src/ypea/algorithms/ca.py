@@ -26,7 +26,7 @@ class CA(Algorithm):
     Parameters
     ----------
     accept_rate : share of the population (sorted from best) that updates the culture.
-        At least one solution is accepted.
+        At least two solutions are accepted (one would give zero width intervals).
     influence_type : how the culture moves an individual (component j, N is a standard
         normal number, size_j = xmax_j - xmin_j, s is the situational solution):
 
@@ -82,7 +82,8 @@ class CA(Algorithm):
 
     def initialize(self):
         # MATLAB round (half away from zero), at least one
-        self._accept_count = max(1, int(self.accept_rate * self.pop_size + 0.5))
+        # at least two, or the normative intervals have zero width and the search stalls
+        self._accept_count = min(max(2, int(self.accept_rate * self.pop_size + 0.5)), self.pop_size)
         self.pop = self.sort(self.random_population())
         d = self.dim
         worst = self.problem.comparator.worst_value

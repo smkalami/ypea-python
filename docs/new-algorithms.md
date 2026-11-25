@@ -1,6 +1,6 @@
 # Algorithms not in YPEA for MATLAB
 
-These four algorithms are strong modern baselines for benchmark comparisons, such as the CEC suites. Like the other algorithms, they work with every problem and variable type.
+Four strong modern baselines for benchmark comparisons, such as the CEC suites, and two reference methods. Like the other algorithms, they work with every problem and variable type.
 
 ## Adaptive Differential Evolution: JADE, SHADE, L-SHADE
 
@@ -55,3 +55,23 @@ Runs CMA-ES and restarts it from a new random mean when a run stops making progr
 After a run, `restarts`, `lam_current` and `restart_log` (a list of evaluations, new population size and reason) describe the restarts.
 
 References: A. Auger and N. Hansen, "A restart CMA evolution strategy with increasing population size", IEEE CEC 2005, 1769 to 1776. N. Hansen, "The CMA Evolution Strategy: A Tutorial", arXiv:1604.00772, 2016.
+
+## Reference methods
+
+### Random Search
+
+`ypea.RandomSearch(pop_size=100)`
+
+Samples `pop_size` new points uniformly in every iteration. The baseline every method should beat.
+
+### Nelder-Mead
+
+`ypea.NelderMead(reflection=1.0, expansion=2.0, contraction=0.5, shrink=0.5, initial_step=0.1, restart_tol=1e-10)`
+
+The downhill simplex method with the standard coefficients of Lagarias et al. (1998), on the codes in [0, 1]. The simplex has d + 1 vertices, so `pop_size` is not used. It restarts from a new random point when the simplex shrinks below `restart_tol`, so it uses its whole budget. The class docstring gives every step.
+
+References: J. A. Nelder and R. Mead, "A simplex method for function minimization", The Computer Journal 7(4), 1965. J. C. Lagarias, J. A. Reeds, M. H. Wright and P. E. Wright, "Convergence properties of the Nelder-Mead simplex method in low dimensions", SIAM Journal on Optimization 9(1), 1998.
+
+## The Studio generator
+
+`algorithm.solve(problem, seed=ypea.StudioRng(123))` makes a run draw exactly the same random numbers as YPEA Studio with the same seed, so a script exported from Studio reproduces the app's results. Without it, ypea uses NumPy's default generator. `ypea.derive_seed(base, i)` gives the seed of run `i` of an experiment, as in Studio.

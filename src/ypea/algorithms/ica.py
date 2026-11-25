@@ -15,8 +15,10 @@ class ICA(Algorithm):
     colonies move toward their imperialist (assimilation), some countries change at random
     (revolution), a colony that becomes better than its imperialist takes its place, and
     the empires compete: the weakest colony of the weakest empire goes to another empire.
-    An empire without colonies collapses, and its imperialist becomes a colony of another
-    empire. With one empire left, the run continues with assimilation and revolution.
+    When the weakest empire has no colonies left, it collapses, and its imperialist becomes
+    a colony of another empire (only the weakest empire is checked, as in MATLAB, so an
+    empty empire lasts until it is the weakest). With one empire left, the run continues
+    with assimilation and revolution.
 
     Parameters
     ----------

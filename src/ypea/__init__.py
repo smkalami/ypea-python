@@ -13,13 +13,14 @@ Define an optimization problem once, then solve it with any of the algorithms::
     print(result.best.solution.x, result.best.obj_value)
 """
 
-from . import benchmarks, callbacks, plot
+from . import benchmarks, callbacks, plot, random
 from .algorithm import Algorithm
 from .algorithms import *  # noqa: F403
 from .algorithms import __all__ as _algorithms
 from .comparison import Comparator
 from .population import Individual, Population
 from .problem import Problem, Solution
+from .random import StudioRng, derive_seed
 from .result import History, Result
 from .variables import (
     Binary,
@@ -34,11 +35,12 @@ from .variables import (
     Variable,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "Algorithm", "Binary", "BinaryPartition", "BinarySelection", "Comparator", "FixedSum",
     "History", "Individual", "Integer", "Partition", "Permutation", "Population", "Problem",
-    "Real", "Result", "Selection", "Solution", "Variable", "benchmarks", "callbacks", "plot",
+    "Real", "Result", "Selection", "Solution", "StudioRng", "Variable", "benchmarks", "callbacks",
+    "derive_seed", "plot", "random",
     *_algorithms,
 ]

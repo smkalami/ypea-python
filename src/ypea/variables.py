@@ -292,6 +292,8 @@ class FixedSum(Variable):
     def __init__(self, name, shape, target=1.0, axis=None):
         super().__init__(name)
         self.shape = _shape(shape)
+        if axis not in (None, 0, 1):
+            raise ValueError(f"{name}: axis must be None, 0 or 1")
         self.axis = axis
         self.target = np.asarray(target, dtype=float)
         if axis is None and self.target.ndim:

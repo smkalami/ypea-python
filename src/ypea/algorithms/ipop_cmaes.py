@@ -8,6 +8,15 @@ from ..algorithm import check, is_int, is_real
 from .cmaes import CMAES
 
 
+def _span(values):
+    """Range of the values. Equal values (including a plateau of inf) have range 0."""
+    if np.all(values == values[0]):
+        return 0.0
+    with np.errstate(invalid="ignore"):
+        s = np.ptp(values)
+    return s if np.isfinite(s) else np.inf
+
+
 class IPOPCMAES(CMAES):
     """IPOP-CMA-ES: CMA-ES that restarts with a larger population when it stops making progress.
 
@@ -31,7 +40,8 @@ class IPOPCMAES(CMAES):
         iterations and all values of the current iteration is below this. Default 1e-12.
         Use 0 to turn it off (it stops a run that has already converged to an exact optimum).
     tol_hist_fun : restart when 10 + ceil(30 n / lambda) iterations have passed and the range
-        of their best values is below this (this includes equal values). Default 1e-12.
+        of their best values is below this. Equal values, also infinite ones, have range 0.
+        Default 1e-12. Use 0 to turn it off.
     tol_x : restart when sigma times max(sqrt(C_ii), |pc_i|) is below this for every
         coordinate i. None (default) gives 1e-12 * sigma0.
     max_condition : restart when the condition number of C exceeds this. Default 1e14.
@@ -53,6 +63,8 @@ class IPOPCMAES(CMAES):
     name = "CMA-ES with Restarts and Increasing Population Size"
     short_name = "IPOP-CMA-ES"
 
+    mu = None  # always lambda // 2, not a setting (kept as a class attribute for pickling)
+
     def __init__(self, *, pop_size=None, sigma0=0.5, x0=None, incpopsize=2, max_restarts=None,
                  tol_fun=1e-12, tol_hist_fun=1e-12, tol_x=None, max_condition=1e14, **kwargs):
         self.incpopsize = incpopsize
@@ -61,7 +73,13 @@ class IPOPCMAES(CMAES):
         self.tol_hist_fun = tol_hist_fun
         self.tol_x = tol_x
         self.max_condition = max_condition
+        kwargs.pop("mu", None)  # mu is always lambda // 2 here
         super().__init__(pop_size=pop_size, mu=None, sigma0=sigma0, x0=x0, **kwargs)
+
+    def params(self):
+        p = super().params()
+        p.pop("mu", None)
+        return p
 
     @property
     def lam(self) -> int:
@@ -91,7 +109,8 @@ class IPOPCMAES(CMAES):
 
     def _restart(self, reason):
         self.restarts += 1
-        self.lam_current = int(round(self.lam_current * self.incpopsize))
+        # grow by at least one, so a factor close to 1 still changes the run
+        self.lam_current = max(self.lam_current + 1, int(round(self.lam_current * self.incpopsize)))
         self.restart_log.append((self.nfe, self.lam_current, reason))
         x0, self.x0 = self.x0, None  # only the first run starts at x0
         try:
@@ -108,10 +127,9 @@ class IPOPCMAES(CMAES):
         hist = self.best_hist[-L:]
         # both need a full history, so a flat objective cannot double lambda every iteration
         if len(hist) >= L and np.all(self.pop.V <= 0):
-            span = np.ptp(np.r_[hist, self.min_keys(self.pop)])
-            if span < self.tol_fun:
+            if _span(np.r_[hist, self.min_keys(self.pop)]) < self.tol_fun:
                 return "tol_fun"
-        if len(hist) >= L and np.ptp(hist) < self.tol_hist_fun:
+        if len(hist) >= L and _span(np.asarray(hist)) < self.tol_hist_fun:
             return "tol_hist_fun"
         tol_x = 1e-12 * self.sigma0 if self.tol_x is None else self.tol_x
         if np.all(sigma * np.maximum(np.sqrt(np.diag(self.C)), np.abs(self.pc)) < tol_x):
