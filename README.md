@@ -6,14 +6,12 @@ Yarpiz Evolutionary Algorithms (YPEA) is a toolbox for defining an optimization 
 
 ## Install
 
-YPEA is not on PyPI yet. Install it from a copy of this repository (Python 3.12 or newer):
-
 ```
-pip install -e .            # core, needs only NumPy
-pip install -e ".[plot]"    # with matplotlib for plots
+pip install ypea            # core, needs only NumPy
+pip install "ypea[plot]"    # with matplotlib for plots
 ```
 
-Once 0.1 is released, `pip install ypea` will work.
+Python 3.12 or newer. To work on YPEA itself, clone the repository and run `pip install -e ".[dev]"`.
 
 ## Example
 
