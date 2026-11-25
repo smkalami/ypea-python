@@ -40,6 +40,7 @@ class Evaluator:
         if m:
             F[:m], V[:m] = self._evaluate(X[:m])
             F[:m] = np.where(np.isnan(F[:m]), self.cmp.worst_value, F[:m])
+            V[:m] = np.where(np.isnan(V[:m]), np.inf, V[:m])
             self._update_best(X[:m], F[:m], V[:m])
             self.nfe += m
         if self.max_nfe is not None and self.nfe >= self.max_nfe and self.stop_reason is None:

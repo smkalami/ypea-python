@@ -34,7 +34,8 @@ class Algorithm:
     Common settings
     ---------------
     max_iter : int or None
-        Maximum number of iterations. None means no limit (another rule must stop the run).
+        Maximum number of iterations. If None (the default), the run is limited only by
+        ``max_nfe`` and ``max_time``, and when neither is set, ``max_iter`` is 100.
     pop_size : int
         Population size.
     max_nfe : int or None
@@ -54,7 +55,7 @@ class Algorithm:
     name = "Abstract Algorithm"
     short_name = "ALG"
 
-    def __init__(self, *, max_iter=100, pop_size=100, max_nfe=None, target=None,
+    def __init__(self, *, max_iter=None, pop_size=100, max_nfe=None, target=None,
                  max_time=None, display=False):
         self.max_iter = max_iter
         self.pop_size = pop_size
@@ -63,6 +64,24 @@ class Algorithm:
         self.max_time = max_time
         self.display = display
         self.validate()
+
+    #: iterations used when no limit at all is given
+    default_max_iter = 100
+
+    @property
+    def iter_limit(self):
+        """The iteration limit in effect: ``max_iter``, or 100 when no limit is set at all."""
+        if self.max_iter is None and self.max_nfe is None and self.max_time is None:
+            return self.default_max_iter
+        return self.max_iter
+
+    def planned_iterations(self, evals_per_iter):
+        """Expected number of iterations, for schedules that must end with the run
+        (for example the SA temperature). Uses whichever limit binds first."""
+        limits = [self.iter_limit] if self.iter_limit is not None else []
+        if self.max_nfe is not None:
+            limits.append(int(np.ceil(self.max_nfe / max(evals_per_iter, 1))))
+        return max(min(limits), 1) if limits else self.default_max_iter
 
     @property
     def full_name(self):
@@ -77,6 +96,11 @@ class Algorithm:
                           if p not in ("self", "args", "kwargs") and p not in names]
         return {n: getattr(self, n) for n in names if hasattr(self, n)}
 
+    def __getstate__(self):
+        # settings only: run state may hold a lambda objective or an executor
+        names = self.params()
+        return {k: v for k, v in self.__dict__.items() if k in names}
+
     def __repr__(self):
         args = ", ".join(f"{k}={v!r}" for k, v in self.params().items())
         return f"{type(self).__name__}({args})"
@@ -88,8 +112,6 @@ class Algorithm:
         check(self.max_nfe is None or is_int(self.max_nfe, 1), "max_nfe must be a positive integer or None")
         check(self.target is None or is_real(self.target), "target must be a number or None")
         check(self.max_time is None or is_real(self.max_time, 0), "max_time must be a positive number or None")
-        check(self.max_iter is not None or self.max_nfe is not None or self.max_time is not None,
-              "set at least one of max_iter, max_nfe or max_time")
 
     # running
 
@@ -128,8 +150,13 @@ class Algorithm:
             if stop_reason:
                 break
             self.iter += 1
+            nfe_before = self.nfe
             self.iterate()
             self._record()
+            if self.nfe == nfe_before:
+                # settings that create no new solutions (for example GA with pop_size=1)
+                stop_reason = "no_evaluations"
+                break
             if self.display:
                 print(f"Iteration {self.iter}: Best Obj. Value = {self.best.obj_value[0]:.6g}, "
                       f"NFE = {self.nfe}")
@@ -151,7 +178,7 @@ class Algorithm:
     def _stop_reason(self):
         if self.evaluator.stop_reason:
             return self.evaluator.stop_reason
-        if self.max_iter is not None and self.iter >= self.max_iter:
+        if self.iter_limit is not None and self.iter >= self.iter_limit:
             return "max_iter"
         if self.max_time is not None and time.perf_counter() - self._t0 >= self.max_time:
             return "max_time"

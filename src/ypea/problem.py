@@ -33,17 +33,17 @@ class Problem:
         If True, ``objective`` is called once per population with a ``Solution`` whose
         attributes have a leading population axis, and returns arrays: ``f`` with shape
         (n,), and ``g`` with shape (n,) or (n, number of constraints).
-    constraint_handling : "feasibility" or "penalty"
+    constraints : "feasibility" or "penalty"
         How constrained solutions are compared (see ``ypea.comparison``).
     penalty : float
-        Penalty coefficient, used with ``constraint_handling="penalty"``.
+        Penalty coefficient, used with ``constraints="penalty"``.
     name : str, optional
     optimum : float, optional
         Known optimal objective value. Results then report the error ``f - optimum``.
     """
 
     def __init__(self, vars, objective, sense="min", *, vectorized=False,
-                 constraint_handling="feasibility", penalty=1e6, name=None, optimum=None):
+                 constraints="feasibility", penalty=1e6, name=None, optimum=None):
         self.vars = [vars] if isinstance(vars, Variable) else list(vars)
         if not self.vars or not all(isinstance(v, Variable) for v in self.vars):
             raise TypeError("vars must be a Variable or a non empty list of Variables")
@@ -57,7 +57,9 @@ class Problem:
         self.objective = objective
         self.sense = parse_sense(sense)
         self.vectorized = bool(vectorized)
-        self.comparator = Comparator(self.sense, constraint_handling, penalty)
+        self.constraints = constraints
+        self.penalty = penalty
+        self.comparator = Comparator(self.sense, constraints, penalty)
         self.name = name or getattr(objective, "__name__", "problem")
         self.optimum = optimum
         sizes = [v.code_size for v in self.vars]

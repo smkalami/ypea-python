@@ -19,7 +19,7 @@ class SA(Algorithm):
     ----------
     max_sub_iter : sub iterations at a fixed temperature
     initial_temp, final_temp : the temperature falls geometrically from initial_temp
-        to final_temp over max_iter iterations
+        to final_temp over the planned length of the run
     move_count : moves per solution in each sub iteration
     mutation_rate : probability that a component changes in a move (at least one changes)
     mutation_step_size : standard deviation of the Gaussian move (in code units)
@@ -61,10 +61,8 @@ class SA(Algorithm):
     def initialize(self):
         self.pop = self.random_population()
         self._temp = self.initial_temp
-        # reach final_temp at the end of the run: after max_iter iterations, or else after
-        # the number of iterations that max_nfe allows
-        per_iter = self.pop_size * self.move_count * self.max_sub_iter
-        steps = self.max_iter or (int(np.ceil(self.max_nfe / per_iter)) if self.max_nfe else 100)
+        # reach final_temp when the run ends, whichever limit binds first
+        steps = self.planned_iterations(self.pop_size * self.move_count * self.max_sub_iter)
         self._temp_damp = (self.final_temp / self.initial_temp) ** (1 / steps)
         self._sigma = self.mutation_step_size
 

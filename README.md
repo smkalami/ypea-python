@@ -6,12 +6,14 @@ Yarpiz Evolutionary Algorithms (YPEA) is a toolbox for defining an optimization 
 
 ## Install
 
+YPEA is not on PyPI yet. Install it from a copy of this repository (Python 3.12 or newer):
+
 ```
-pip install ypea            # core, needs only NumPy
-pip install ypea[plot]      # with matplotlib for plots
+pip install -e .            # core, needs only NumPy
+pip install -e ".[plot]"    # with matplotlib for plots
 ```
 
-Python 3.12 or newer.
+Once 0.1 is released, `pip install ypea` will work.
 
 ## Example
 
@@ -60,7 +62,7 @@ A problem can mix several variables. The decoded solution has one attribute per 
 
 ## Constraints
 
-The objective may return `(f, g)`, where each value in `g` is satisfied when `g <= 0`. By default, solutions are compared with Deb's feasibility rules. Use `constraint_handling="penalty"` for a penalty method.
+The objective may return `(f, g)`, where each value in `g` is satisfied when `g <= 0`. By default, solutions are compared with Deb's feasibility rules. Use `constraints="penalty"` for a penalty method.
 
 ```python
 def evaluate(sol):

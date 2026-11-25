@@ -30,7 +30,7 @@ class Comparator:
         self.sense = parse_sense(sense)
         self.sign = 1.0 if self.sense == "min" else -1.0
         if constraint_handling not in ("feasibility", "penalty"):
-            raise ValueError("constraint_handling must be 'feasibility' or 'penalty'")
+            raise ValueError("constraints must be 'feasibility' or 'penalty'")
         self.constraint_handling = constraint_handling
         self.penalty = float(penalty)
 

@@ -1,5 +1,5 @@
 import pickle
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 import numpy as np
 import pytest
@@ -69,7 +69,7 @@ def test_constraints(constrained):
     r = ypea.DE(max_iter=200, pop_size=30).solve(constrained, seed=1)
     assert r.best.feasible
     assert np.allclose(r.best.solution.x, [1.5, 0.5], atol=1e-2)
-    pen = ypea.Problem(constrained.vars, constrained.objective, constraint_handling="penalty")
+    pen = ypea.Problem(constrained.vars, constrained.objective, constraints="penalty")
     r2 = ypea.DE(max_iter=200, pop_size=30).solve(pen, seed=1)
     assert abs(r2.best.obj_value - 0.5) < 1e-2
 
@@ -105,8 +105,6 @@ def test_settings_are_validated():
     with pytest.raises(ValueError):
         ypea.PSO(pop_size=0)
     with pytest.raises(ValueError):
-        ypea.PSO(max_iter=None)
-    with pytest.raises(ValueError):
         ypea.DE("DE/best/9/bin", pop_size=10)
     with pytest.raises(ValueError):
         ypea.DE("DE/nonsense/1/bin")
@@ -122,3 +120,41 @@ def test_convergence_plot(sphere10):
     ax = ypea.plot.convergence(a, b)
     assert len(ax.lines) == 2 and ax.get_yscale() == "log"
     ypea.plot.convergence(a, x="iter")
+
+
+def test_default_limits(sphere10):
+    # max_nfe alone must not be capped by a default iteration limit
+    assert ypea.PSO(max_nfe=20_000, pop_size=40).solve(sphere10, seed=0).nfe == 20_000
+    r = ypea.PSO(pop_size=10).solve(sphere10, seed=0)  # no limit given: 100 iterations
+    assert r.iterations == 100 and r.stop_reason == "max_iter"
+    r = ypea.PSO(max_iter=5, max_nfe=10_000, pop_size=10).solve(sphere10, seed=0)
+    assert r.iterations == 5  # whichever limit binds first
+
+
+def test_pickle_after_run_with_lambda_and_executor():
+    p = ypea.Problem(ypea.Real("x", shape=3), lambda s: float(np.sum(s.x**2)))
+    alg = ypea.DE(max_iter=3, pop_size=10)
+    with ThreadPoolExecutor(2) as pool:
+        alg.solve(p, seed=0, executor=pool)
+    clone = pickle.loads(pickle.dumps(alg))
+    assert clone.params() == alg.params() and not hasattr(clone, "evaluator")
+
+
+def test_nan_values_are_worst():
+    def bad(sol):
+        return (np.nan, np.nan) if sol.x[0] < 0.5 else (float(sol.x[0]), [0.0])
+
+    r = ypea.DE(max_iter=10, pop_size=10).solve(ypea.Problem(ypea.Real("x", shape=2), bad), seed=0)
+    assert r.best.feasible and r.best.obj_value >= 0.5
+
+
+def test_settings_that_create_nothing_stop(sphere10):
+    r = ypea.GA(pop_size=1, max_nfe=1000).solve(sphere10, seed=0)
+    assert r.stop_reason == "no_evaluations"
+
+
+def test_process_pool_matches_plain(sphere10):
+    alg = ypea.DE(max_iter=5, pop_size=10)
+    with ProcessPoolExecutor(2) as pool:
+        a = alg.solve(sphere10, seed=3, executor=pool).best.obj_value
+    assert a == alg.solve(sphere10, seed=3).best.obj_value
