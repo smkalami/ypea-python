@@ -1,0 +1,120 @@
+"""Optimization problem: decision variables, objective, and how solutions are compared."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+import numpy as np
+
+from .comparison import Comparator, parse_sense
+from .variables import Variable
+
+
+class Solution(SimpleNamespace):
+    """A decoded solution. Each variable is an attribute (``sol.x``) and also a key (``sol["x"]``)."""
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+
+class Problem:
+    """An optimization problem.
+
+    Parameters
+    ----------
+    vars : Variable or list of Variable
+        The decision variables. Names must be unique.
+    objective : callable
+        Called with a decoded ``Solution``. Returns the objective value ``f``, or
+        ``(f, g)`` where ``g`` is a constraint value or a list of them, each satisfied
+        when ``g <= 0``.
+    sense : "min" or "max"
+    vectorized : bool
+        If True, ``objective`` is called once per population with a ``Solution`` whose
+        attributes have a leading population axis, and returns arrays: ``f`` with shape
+        (n,), and ``g`` with shape (n,) or (n, number of constraints).
+    constraint_handling : "feasibility" or "penalty"
+        How constrained solutions are compared (see ``ypea.comparison``).
+    penalty : float
+        Penalty coefficient, used with ``constraint_handling="penalty"``.
+    name : str, optional
+    optimum : float, optional
+        Known optimal objective value. Results then report the error ``f - optimum``.
+    """
+
+    def __init__(self, vars, objective, sense="min", *, vectorized=False,
+                 constraint_handling="feasibility", penalty=1e6, name=None, optimum=None):
+        self.vars = [vars] if isinstance(vars, Variable) else list(vars)
+        if not self.vars or not all(isinstance(v, Variable) for v in self.vars):
+            raise TypeError("vars must be a Variable or a non empty list of Variables")
+        names = [v.name for v in self.vars]
+        if len(set(names)) != len(names):
+            raise ValueError(f"variable names must be unique, got {names}")
+        if not callable(objective):
+            raise TypeError("objective must be callable")
+        if vectorized and not all(v.array_valued for v in self.vars):
+            raise ValueError("Partition variables decode to lists, so the problem cannot be vectorized")
+        self.objective = objective
+        self.sense = parse_sense(sense)
+        self.vectorized = bool(vectorized)
+        self.comparator = Comparator(self.sense, constraint_handling, penalty)
+        self.name = name or getattr(objective, "__name__", "problem")
+        self.optimum = optimum
+        sizes = [v.code_size for v in self.vars]
+        self._slices = np.cumsum([0, *sizes])
+        self.code_size = int(self._slices[-1])
+
+    def __repr__(self):
+        return f"Problem({self.name!r}, sense={self.sense!r}, vars={self.vars})"
+
+    # decoding and encoding
+
+    def decode(self, X):
+        """Decode codes of shape (n, code_size). Returns a batch ``Solution`` if vectorized,
+        otherwise a list of ``Solution``."""
+        X = np.atleast_2d(np.asarray(X, dtype=float))
+        if X.shape[1] != self.code_size:
+            raise ValueError(f"expected codes of length {self.code_size}, got {X.shape[1]}")
+        parts = {v.name: v.decode(X[:, a:b]) for v, a, b in
+                 zip(self.vars, self._slices[:-1], self._slices[1:], strict=True)}
+        if self.vectorized:
+            return Solution(**parts)
+        return [Solution(**{k: p[i] for k, p in parts.items()}) for i in range(len(X))]
+
+    def decode_one(self, x) -> Solution:
+        X = np.asarray(x, dtype=float).reshape(1, -1)
+        parts = {v.name: v.decode(X[:, a:b])[0] for v, a, b in
+                 zip(self.vars, self._slices[:-1], self._slices[1:], strict=True)}
+        return Solution(**parts)
+
+    def encode(self, solution) -> np.ndarray:
+        """Code vector of a solution given as a ``Solution`` or a dict of variable values."""
+        get = solution.__getitem__ if isinstance(solution, dict) else lambda k: getattr(solution, k)
+        return np.concatenate([v.encode([get(v.name)])[0] for v in self.vars])
+
+    def random_codes(self, n, rng):
+        return rng.random((n, self.code_size))
+
+    # evaluation
+
+    def evaluate(self, solution):
+        """Objective value and total violation of one decoded solution."""
+        return parse_result(self.objective(solution))
+
+
+def parse_result(out):
+    """Turn an objective return value into (f, violation)."""
+    if isinstance(out, tuple):
+        f, g = out
+        g = np.asarray(g, dtype=float)
+        return float(f), float(np.maximum(g, 0).sum())
+    return float(out), 0.0
+
+
+def parse_batch(out, n):
+    """Turn a vectorized objective return value into arrays F (n,) and V (n,)."""
+    if isinstance(out, tuple):
+        f, g = out
+        g = np.asarray(g, dtype=float).reshape(n, -1)
+        return np.asarray(f, dtype=float).reshape(n), np.maximum(g, 0).sum(axis=1)
+    return np.asarray(out, dtype=float).reshape(n), np.zeros(n)
