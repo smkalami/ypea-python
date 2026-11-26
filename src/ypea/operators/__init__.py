@@ -7,8 +7,9 @@ stays a permutation, k ones stay k ones, values stay in their bounds), so
 ``decode(encode(y)) == y`` holds for every output.
 
 The algorithm decodes the parents' codes, applies each variable's operator, and encodes
-the result back. Types without a native operator (Partition, BinaryPartition, FixedSum)
-keep using the algorithm's [0, 1] code operators on their own slice of the codes.
+the result back. Partition and BinaryPartition use the permutation operators on their
+ordering of items and separators. FixedSum has no native operator and keeps using the
+algorithm's [0, 1] code operators on its own slice of the codes.
 
 All random numbers come from the ``rng`` argument, and only from the methods that
 ``ypea.StudioRng`` offers.
@@ -21,14 +22,24 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from ..variables import Binary, BinarySelection, Integer, Permutation, Real, Selection
+from ..variables import (
+    Binary,
+    BinaryPartition,
+    BinarySelection,
+    Integer,
+    Partition,
+    Permutation,
+    Real,
+    Selection,
+    _ranks_to_codes,
+)
 
 __all__ = [
     "uniform_crossover", "one_point_crossover",
     "order_crossover", "pmx", "cycle_crossover",
     "swap", "inversion", "insertion", "scramble",
     "RealOperators", "IntegerOperators", "PermutationOperators",
-    "SelectionOperators", "BinarySelectionOperators",
+    "SelectionOperators", "BinarySelectionOperators", "PartitionOperators",
     "default_operators", "NativeOperators",
 ]
 
@@ -209,6 +220,30 @@ class PermutationOperators(_Operators):
         return y.reshape(x.shape)
 
 
+class PartitionOperators(PermutationOperators):
+    """Partition and BinaryPartition: the permutation operators on the ordering of n items and
+    k - 1 separators that the groups come from.
+
+    The ordering is rebuilt as the variable's ``encode`` builds it: the items of group 0, then
+    separator n, the items of group 1, separator n + 1, and so on. So separators are numbered
+    by group position, and order crossover and PMX treat them as distinct values.
+    """
+
+    def _orders(self, values):
+        codes = self.var.encode(values).reshape(-1, self.var.row_code_size)
+        return np.argsort(codes, axis=1, kind="stable")
+
+    def _values(self, orders):
+        return self.var.decode(_ranks_to_codes(orders, self.var.row_code_size).reshape(-1, self.var.code_size))
+
+    def crossover(self, x1, x2, rng):
+        c1, c2 = super().crossover(self._orders(x1), self._orders(x2), rng)
+        return self._values(c1), self._values(c2)
+
+    def mutate(self, x, rng):
+        return self._values(super().mutate(self._orders(x), rng))
+
+
 class SelectionOperators(_Operators):
     """Ordered selection of k distinct items. Crossover takes an item from the other parent
     at a random half of the positions, when the child does not hold it yet. Mutation
@@ -274,7 +309,8 @@ class BinarySelectionOperators(_Operators):
 def default_operators(var, **params):
     """The native operators of a variable, or None if its type has none."""
     for cls, ops in ((Real, RealOperators), (Integer, IntegerOperators), (Permutation, PermutationOperators),
-                     (Selection, SelectionOperators), (BinarySelection, BinarySelectionOperators)):
+                     (Selection, SelectionOperators), (BinarySelection, BinarySelectionOperators),
+                     (Partition, PartitionOperators), (BinaryPartition, PartitionOperators)):
         if type(var) is cls or (cls is Integer and type(var) is Binary):
             return ops(var, **params)
     return None

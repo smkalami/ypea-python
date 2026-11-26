@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 (2026-11-26)
+
+- The GA guide recommends `mutation_step_size_damp=1` for combinatorial problems and long runs, with benchmark evidence. The default stays 0.99.
+- Native operators for `Partition` and `BinaryPartition` (`space="native"`): the permutation crossovers and moves on the ordering of items and separators, so routing problems modeled as a partition benefit from the native space. Results with the default `space` are unchanged. Native space runs with a partition variable change.
+
 ## 0.4.0 (2026-11-26)
 
 - **Benchmarks:** 26 classic functions with seeded shift and rotation, and the CEC 2017 and CEC 2022 suites with the official data, checked against the official C code. See [Benchmarks](guide/benchmarks.md).

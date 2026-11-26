@@ -10,6 +10,7 @@ import ypea
 from ypea.operators import (
     BinarySelectionOperators,
     IntegerOperators,
+    PartitionOperators,
     PermutationOperators,
     RealOperators,
     SelectionOperators,
@@ -100,8 +101,55 @@ def test_operator_details():
     kinds = {v.name: type(default_operators(v)) for v in VARS}
     assert kinds["r"] is RealOperators and kinds["b"] is IntegerOperators
     assert kinds["s"] is SelectionOperators and kinds["bs"] is BinarySelectionOperators
-    for v in (ypea.Partition("q", 5, 2), ypea.BinaryPartition("q", 5, 2), ypea.FixedSum("f", 3)):
-        assert default_operators(v) is None
+    assert type(default_operators(ypea.Partition("q", 5, 2))) is PartitionOperators
+    assert type(default_operators(ypea.BinaryPartition("q", 5, 2))) is PartitionOperators
+    assert default_operators(ypea.FixedSum("f", 3)) is None
+
+
+PARTS = [
+    ypea.Partition("q", n=7, k=3),
+    ypea.Partition("q1", n=5, k=1),
+    ypea.Partition("qc", n=6, k=2, count=2),
+    ypea.BinaryPartition("bq", n=6, k=3),
+    ypea.BinaryPartition("bqc", n=5, k=2, count=2),
+]
+
+
+def partition_rows(var, y):
+    """Each sample as a tuple of rows, each row a tuple of groups (item order kept)."""
+    if isinstance(var, ypea.BinaryPartition):
+        rows = np.asarray(y).reshape(-1, var.rows, var.k, var.n)
+        return [tuple(tuple(tuple(np.flatnonzero(g).tolist()) for g in row) for row in s) for s in rows]
+    samples = y if var.count else [[s] for s in y]
+    return [tuple(tuple(tuple(int(i) for i in g) for g in row) for row in s) for s in samples]
+
+
+@pytest.mark.parametrize("var", PARTS, ids=lambda v: v.name)
+@pytest.mark.parametrize("rng", [0, "studio"])
+def test_partition_operators_keep_groups_and_round_trip(var, rng):
+    rng = ypea.StudioRng(5) if rng == "studio" else np.random.default_rng(rng)
+    x1, x2 = (var.decode(rng.random((30, var.code_size))) for _ in range(2))
+    every = (swap, inversion, insertion, scramble)
+    outs = [*default_operators(var).crossover(x1, x2, rng), default_operators(var).mutate(x1, rng)]
+    for c in (order_crossover, pmx, cycle_crossover):
+        outs += PartitionOperators(var, crossovers=(c,)).crossover(x1, x2, rng)
+    outs += [PartitionOperators(var, mutations=(m,)).mutate(x1, rng) for m in every]
+    for y in outs:
+        rows = partition_rows(var, y)
+        assert len(rows) == 30
+        for row in (r for s in rows for r in s):
+            assert len(row) == var.k and sorted(i for g in row for i in g) == list(range(var.n))
+        assert partition_rows(var, var.decode(var.encode(y))) == rows
+
+
+def test_partition_ordering_numbers_separators_by_group():
+    var = ypea.Partition("q", n=5, k=3)
+    ops = PartitionOperators(var)
+    x = [[np.array([3, 0]), np.array([], int), np.array([4, 1, 2])]]
+    assert ops._orders(x).tolist() == [[3, 0, 5, 6, 4, 1, 2]]
+    # swapping item 0 with the first separator moves item 0 into the empty middle group
+    y = ops._values(np.array([[3, 5, 0, 6, 4, 1, 2]]))
+    assert partition_rows(var, y) == [(((3,), (0,), (4, 1, 2)),)]
 
 
 def test_default_space_is_unchanged(sphere10):
@@ -143,6 +191,17 @@ def knapsack(n=40):
     return ypea.Problem(ypea.Binary("b", shape=n), lambda s: (float(v @ s.b), float(w @ s.b - cap)), sense="max")
 
 
+def routes(n=30, k=3):
+    # k routes from a depot, modeled as a Partition (items and separators in one ordering)
+    xy = np.random.default_rng(1).random((n + 1, 2))
+    d = np.linalg.norm(xy[:, None] - xy[None], axis=2)
+
+    def length(s):
+        return float(sum(d[r[:-1], r[1:]].sum() for r in (np.r_[n, g, n] for g in s.q)))
+
+    return ypea.Problem(ypea.Partition("q", n=n, k=k), length)
+
+
 @pytest.mark.parametrize("name", NATIVE)
 def test_native_beats_encoded(name):
     def mean(problem, space):
@@ -154,6 +213,7 @@ def test_native_beats_encoded(name):
 
     assert mean(tsp(), "native") < mean(tsp(), "encoded")
     assert mean(knapsack(), "native") > mean(knapsack(), "encoded")
+    assert mean(routes(), "native") < mean(routes(), "encoded")
 
 
 def module_swap_only(x, rng):

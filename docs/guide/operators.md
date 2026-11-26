@@ -28,9 +28,14 @@ native   545.90
 | `Permutation` | order crossover (OX), partially mapped crossover (PMX) or cycle crossover (CX), one picked at random for each pair | swap, inversion or insertion, one picked at random for each move |
 | `Selection` | takes items of the other parent where they are not used yet | replaces an item with an unused one, or swaps two positions |
 | `BinarySelection` | keeps the common ones and shares the others between the children | swaps a one and a zero |
-| `Partition`, `BinaryPartition`, `FixedSum` | the code operators of the algorithm, on the codes of that variable | the same |
+| `Partition`, `BinaryPartition` | the `Permutation` crossovers, on the ordering of the n items and k - 1 separators | the `Permutation` moves, on the same ordering |
+| `FixedSum` | the code operators of the algorithm, on the codes of that variable | the same |
 
-Every native operator keeps the rules of its type: a permutation stays a permutation, a mask keeps exactly k ones, and values stay inside their bounds. In a problem with several variables, each variable gets its own operators.
+Every native operator keeps the rules of its type: a permutation stays a permutation, a mask keeps exactly k ones, a partition keeps every item in exactly one group, and values stay inside their bounds.
+
+For a partition, the ordering is rebuilt from the groups as the variable's `encode` builds it: the items of group 0, then separator n, the items of group 1, separator n + 1, and so on. So the separators are numbered by group position, and order crossover and PMX treat them as distinct values. This lets a routing problem with k vehicles be modeled as `Partition("routes", n=customers, k=vehicles)` and still use the permutation operators. In a problem with several variables, each variable gets its own operators.
+
+With GA on a combinatorial problem, also set `mutation_step_size_damp=1`, so the step does not shrink until the search stops moving. See [GA](../algorithms/ga.md#long-runs-and-combinatorial-problems).
 
 ## Your own operators
 

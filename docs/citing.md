@@ -2,13 +2,13 @@
 
 If you use YPEA for Python in your research, please cite it. The repository has a `CITATION.cff` file, which GitHub shows as "Cite this repository":
 
-> Mostapha Kalami Heris, YPEA: Yarpiz Evolutionary Algorithms for Python, version 0.4.0, 2026. https://github.com/smkalami/ypea-python
+> Mostapha Kalami Heris, YPEA: Yarpiz Evolutionary Algorithms for Python, version 0.5.0, 2026. https://github.com/smkalami/ypea-python
 
 ```text
 @software{kalami_heris_ypea_python,
   author  = {Kalami Heris, Mostapha},
   title   = {{YPEA}: Yarpiz Evolutionary Algorithms for Python},
-  version = {0.4.0},
+  version = {0.5.0},
   year    = {2026},
   url     = {https://github.com/smkalami/ypea-python},
   license = {MIT}
