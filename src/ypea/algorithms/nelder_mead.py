@@ -83,6 +83,9 @@ class NelderMead(Algorithm):
         self.restarts = 0
         self._start()
 
+    def result_extra(self):
+        return {"restarts": self.restarts}
+
     def _start(self):
         x0 = self.rng.random(self.dim)
         V = np.repeat(x0[None, :], self.dim + 1, axis=0)

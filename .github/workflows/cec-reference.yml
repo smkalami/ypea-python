@@ -1,0 +1,149 @@
+name: CEC reference values
+
+# Computes reference values of the official CEC 2017 and CEC 2022 C code, on a throwaway
+# Linux runner, so the Python port can be checked against them. Run it by hand
+# (Actions, "CEC reference values", "Run workflow"), then add the uploaded file to
+# tests/data/cec/reference_values.json.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reference:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the official code and data from the organizers' repositories
+        run: |
+          set -e
+          sudo apt-get install -y -q libarchive-tools
+          mkdir -p work && cd work
+          curl -sSL -o c17.rar "https://raw.githubusercontent.com/P-N-Suganthan/CEC2017-BoundContrained/master/codes.rar"
+          curl -sSL -o c22.zip "https://raw.githubusercontent.com/P-N-Suganthan/2022-SO-BO/main/CEC2022.zip"
+          sha256sum c17.rar c22.zip | tee sources.sha256
+          mkdir c17 c22
+          bsdtar -xf c17.rar -C c17
+          bsdtar -xf c22.zip -C c22
+          cp -r "c17/codes/C version" cec2017
+          cp -r "c22/CEC2022/C-Code" cec2022
+
+      - name: Write the driver
+        run: |
+          cd work
+          # the official files include a Windows header that Linux does not have
+          touch cec2017/WINDOWS.H cec2022/WINDOWS.H
+          cat > driver.c.in <<'EOF'
+          #include <stdio.h>
+          #include <stdlib.h>
+          #include <math.h>
+          void FUNC(double *, double *, int, int, int);
+          double *OShift, *M, *y, *z, *x_bound;
+          int ini_flag = 0, n_flag, func_flag, *SS;
+          /* the JSON goes to its own file, because the official code prints messages to stdout */
+          static FILE *out;
+          #define printf(...) fprintf(out, __VA_ARGS__)
+          static void num(double v) {
+              if (isfinite(v)) fprintf(out, "%.17g", v);
+              else fprintf(out, "\"%g\"", v); /* JSON has no inf or nan */
+          }
+
+          static int has_data(int fn, int nx) {
+              char name[64];
+              sprintf(name, "input_data/M_%d_D%d.txt", fn, nx);
+              FILE *f = fopen(name, "r");
+              if (!f) return 0;
+              fclose(f);
+              return 1;
+          }
+
+          int main(void) {
+              int dims[] = DIMS;
+              int ndims = sizeof(dims) / sizeof(dims[0]);
+              double x[100], f;
+              int first = 1;
+              out = fopen("values.json", "w");
+              printf("{");
+              for (int a = 0; a < ndims; a++) {
+                  int nx = dims[a];
+                  printf("%s\"%d\": {", a ? ", " : "", nx);
+                  int firstf = 1;
+                  for (int fn = 1; fn <= NFUNC; fn++) {
+                      if (!has_data(fn, nx)) continue;
+                      printf("%s\"%d\": {\"x\": [", firstf ? "" : ", ", fn);
+                      firstf = 0;
+                      double vals[8];
+                      for (int k = 0; k < 8; k++) {
+                          if (k < 6) {
+                              /* fixed, irregular points spread over [-95, 95] */
+                              for (int i = 0; i < nx; i++) {
+                                  double t = 0.5 + (i + 1) * 0.6180339887498949 + k * 0.3819660112501051;
+                                  x[i] = -95.0 + 190.0 * (t - floor(t));
+                              }
+                          } else {
+                              /* the shift vector (the optimum of most functions), and a point next to it */
+                              FUNC(x, &f, nx, 1, fn); /* load the data */
+                              for (int i = 0; i < nx; i++) x[i] = OShift[i] + (k == 7 ? 0.01 * (i % 3 - 1) : 0.0);
+                          }
+                          FUNC(x, &vals[k], nx, 1, fn);
+                          printf("%s[", k ? ", " : "");
+                          for (int i = 0; i < nx; i++) { printf("%s", i ? ", " : ""); num(x[i]); }
+                          printf("]");
+                      }
+                      printf("], \"f\": [");
+                      for (int k = 0; k < 8; k++) { printf("%s", k ? ", " : ""); num(vals[k]); }
+                      printf("]}");
+                  }
+                  printf("}");
+              }
+              printf("}\n");
+              fclose(out);
+              (void)first;
+              return 0;
+          }
+          EOF
+
+      - name: Compile and run CEC 2017
+        run: |
+          cd work/cec2017
+          # portability: the 2017 code reads doubles with %Lf, which is right only with MSVC
+          # (where long double is double). The 2022 code already uses %lf.
+          sed -i 's/%Lf/%lf/g' cec17_test_func.cpp
+          sed -e 's/NFUNC/30/' -e 's/FUNC/cec17_test_func/g' -e 's/DIMS/{10, 30, 50, 100}/' ../driver.c.in > driver.cpp
+          g++ -O0 -w -I. -o driver driver.cpp cec17_test_func.cpp -lm
+          ./driver > driver.log
+          mv values.json ../cec2017.json
+
+      - name: Compile and run CEC 2022
+        run: |
+          cd work/cec2022
+          sed -e 's/NFUNC/12/' -e 's/FUNC/cec22_test_func/g' -e 's/DIMS/{10, 20}/' ../driver.c.in > driver.cpp
+          g++ -O0 -w -I. -o driver driver.cpp cec22_test_func.cpp -lm
+          ./driver > driver.log
+          mv values.json ../cec2022.json
+
+      - name: Combine
+        run: |
+          cd work
+          python3 - <<'EOF'
+          import json, platform, subprocess
+          out = {
+              "about": "Official CEC C code evaluated at fixed points: 6 spread points, the shift vector, and a point next to it.",
+              "compiler": subprocess.run(["g++", "--version"], capture_output=True, text=True).stdout.splitlines()[0],
+              "platform": platform.platform(),
+              "sources_sha256": open("sources.sha256").read().split("\n"),
+              "patches": ["cec17_test_func.cpp: fscanf %Lf replaced by %lf (right only with MSVC otherwise)",
+                          "both suites: an empty WINDOWS.H header"],
+              "cec2017": json.load(open("cec2017.json")),
+              "cec2022": json.load(open("cec2022.json")),
+          }
+          json.dump(out, open("reference_values.json", "w"))
+          for s in ("cec2017", "cec2022"):
+              print(s, {d: len(v) for d, v in out[s].items()})
+          EOF
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: cec-reference-values
+          path: work/reference_values.json

@@ -158,3 +158,14 @@ def test_process_pool_matches_plain(sphere10):
     with ProcessPoolExecutor(2) as pool:
         a = alg.solve(sphere10, seed=3, executor=pool).best.obj_value
     assert a == alg.solve(sphere10, seed=3).best.obj_value
+
+
+def test_result_to_dict_is_json_ready(sphere10):
+    import json
+
+    r = ypea.IPOPCMAES(max_nfe=3000).solve(sphere10, seed=ypea.StudioRng(3))
+    d = json.loads(json.dumps(r.to_dict()))
+    assert d["seed"] == {"studio": 3} and d["nfe"] == 3000 and "restarts" in d["extra"]
+    assert d["best"]["obj_value"] == r.best.obj_value and len(d["trace"]["nfe"]) == len(r.history.trace_nfe)
+    p = ypea.Problem(ypea.Real("x"), lambda s: float(s.x), info={"x_opt": [0.0]})
+    assert p.info["x_opt"] == [0.0]

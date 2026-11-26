@@ -1,0 +1,114 @@
+site_name: YPEA for Python
+site_description: "Yarpiz Evolutionary Algorithms: define an optimization problem once, solve it with any metaheuristic."
+site_author: Mostapha Kalami Heris
+site_url: https://smkalami.github.io/ypea-python/
+repo_url: https://github.com/smkalami/ypea-python
+repo_name: smkalami/ypea-python
+copyright: Copyright 2026 Mostapha Kalami Heris, MIT license
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Light mode
+
+# links to missing headings fail the strict build too
+validation:
+  anchors: warn
+
+# the griffe extension that turns the plain text docstrings into Markdown
+exclude_docs: |
+  hooks/
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: null
+            extensions:
+              - docs/hooks/docstrings.py:LooseNumpyDocstrings
+            show_root_heading: true
+            show_root_full_path: false
+            show_source: false
+            show_bases: false
+            merge_init_into_class: true
+            separate_signature: true
+            show_signature_annotations: false
+            members_order: source
+            filters: ["!^_"]
+            heading_level: 2
+            members: false
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - User guide:
+      - Problems and variables: guide/problems.md
+      - Objectives and constraints: guide/objectives.md
+      - Algorithms: guide/algorithms.md
+      - Results and plots: guide/results.md
+      - Callbacks: guide/callbacks.md
+      - Benchmarks: guide/benchmarks.md
+      - Test problems: guide/test-problems.md
+      - Experiments and statistics: guide/experiments.md
+      - Native operators: guide/operators.md
+      - Tuning: tuning.md
+  - Algorithms:
+      - Overview: algorithms/index.md
+      - ABC: algorithms/abc.md
+      - ACOR: algorithms/acor.md
+      - BA: algorithms/ba.md
+      - BBO: algorithms/bbo.md
+      - CA: algorithms/ca.md
+      - CMA-ES: algorithms/cmaes.md
+      - DE: algorithms/de.md
+      - FA: algorithms/fa.md
+      - GA: algorithms/ga.md
+      - HS: algorithms/hs.md
+      - ICA: algorithms/ica.md
+      - IPOP-CMA-ES: algorithms/ipop-cmaes.md
+      - IWO: algorithms/iwo.md
+      - JADE: algorithms/jade.md
+      - L-SHADE: algorithms/lshade.md
+      - Nelder-Mead: algorithms/nelder-mead.md
+      - PSO: algorithms/pso.md
+      - Random Search: algorithms/random-search.md
+      - SA: algorithms/sa.md
+      - SHADE: algorithms/shade.md
+      - TLBO: algorithms/tlbo.md
+  - API reference:
+      - Problems, results and runs: api/core.md
+      - Variables: api/variables.md
+      - Benchmarks: api/benchmarks.md
+      - Test problems: api/problems.md
+      - Experiments: api/experiment.md
+      - Operators: api/operators.md
+      - Plots: api/plot.md
+  - Differences from YPEA for MATLAB: differences-from-matlab.md
+  - New algorithms: new-algorithms.md
+  - Changelog: changelog.md
+  - Citing: citing.md

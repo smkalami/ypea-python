@@ -64,6 +64,7 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 - The mean is no longer evaluated every iteration. Only the initial mean is evaluated once.
 - New settings: `sigma0` (MATLAB fixed it at 0.3), `x0` (initial mean).
 - Recombination weights and learning rates follow Table 1 of the tutorial (equations 48 to 58) with positive weights only.
+- Samples use the symmetric root of the covariance, mean + sigma * B D B^T z. The tutorial writes B D z, which has the same distribution, but the symmetric form does not depend on the signs or basis of the eigenvectors, so seeded runs are the same on every platform. Seeded CMA-ES and IPOP-CMA-ES results changed once in 0.4.0.
 
 ### IWO
 
@@ -122,6 +123,7 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 
 - Empire power and the imperialistic competition use rank based costs, so they work for maximization, any objective scale, and constraints (F2). The total cost of an empire is c(imperialist) + zeta * mean(c(colonies)), where c is the normalized rank from 0 (best) to 1 (worst).
 - A collapsed empire's imperialist really becomes a colony of the winning empire (A7).
+- The weakest empire never wins the competition for its own colony: the winner is drawn among the other empires only.
 - The initial colonies are split in proportion to the imperialists' power, as in the paper. MATLAB drew the empire of each colony at random.
 - A colony that revolts is evaluated once. MATLAB evaluated it twice.
 - Each iteration evaluates exactly `pop_size` solutions.
@@ -131,3 +133,26 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 - Each phase updates all learners at once (synchronous). MATLAB updated them one by one.
 - A learner moves away from its partner only if it is strictly better than the partner, otherwise toward it, as in the paper.
 - `pop_size` must be at least 2.
+
+## Default values
+
+Defaults follow the value recommended in each algorithm's paper, and a default changes only when a benchmark experiment confirms the new value. Every MATLAB value is still available as a setting. These defaults differ from YPEA for MATLAB. Each change is described in the algorithm sections above:
+
+| Algorithm | Parameter | MATLAB value | Python default | Source | Evidence |
+|---|---|---|---|---|---|
+| ABC | `onlooker_count` | 100 | `pop_size` (SN) | Karaboga (2005), Table 2, p. 8 | paper value |
+| ABC | `trial_limit` | round(0.6 * d * pop_size) | onlookers * d | Karaboga (2005), Table 2, p. 8 | paper value |
+| BBO | `alpha` | 0.9 | 1 (copy) | Simon (2008) | copy migration of the paper |
+| CMA-ES | `pop_size` | 100 | 4 + floor(3 ln n) | Hansen (2016), Table 1, p. 31 | paper value |
+| IWO | step size schedule | `step_size_damp = 0.001` per iteration | `final_step_size = 0.001` with `modulation_index = 2` | schedule form of Mehrabian and Lucas (2006) | the MATLAB schedule stopped the search (see IWO above) |
+| CA | `selection` | none | `True` | Reynolds (1994) | about 60 to 70 on the 10D sphere without it (see CA above) |
+| BA | `neighborhood` | one component | `"patch"` | Pham et al. (2006) | see BA above |
+
+Paper values that were tested and not adopted, because they did worse on the benchmarks (classic functions shifted and rotated at d = 10 and 30, and CEC 2017, with 15 runs and 10 000 * d evaluations, comparing the Friedman rank of the mean error and the Wilcoxon rank sum wins, ties and losses):
+
+| Algorithm | Parameter | Default (MATLAB) | Paper value | Source | Evidence (new against old) |
+|---|---|---|---|---|---|
+| ABC | `pop_size` (SN) | 100 | 10 (colony of 20) | Karaboga (2005), Table 2, p. 8 | Friedman rank 1.56 against 1.44 over 108 problems (classic and CEC 2017, d = 10 and 30). Significantly worse on CEC 2017 at d = 30 (p = 0.005). Better on the classic functions at d = 30 |
+| FA | `pop_size` | 100 | 40 | Yang (2009), p. 8 | Friedman rank 1.67 against 1.33 over the classic functions at d = 10 and 30, and significantly worse at d = 30 (2 wins, 12 ties, 11 losses, p = 0.003) |
+
+The other defaults either equal their paper value (CMA-ES, IPOP-CMA-ES, L-SHADE, FA `gamma` and `alpha`), use the standard published values (JADE, SHADE, Nelder-Mead) or keep the YPEA for MATLAB value, because their papers give no general value or have not been checked yet.

@@ -125,3 +125,12 @@ def test_small_bee_populations_still_search(sphere10):
     a = ypea.ABC(pop_size=20, onlooker_count=0, max_iter=1)
     a.solve(sphere10, seed=0)
     assert a._limit == 20 * 10
+
+
+def test_cmaes_does_not_depend_on_eigenvector_signs(monkeypatch, sphere10):
+    # the symmetric root B D B^T z is the same for any sign of each eigenvector
+    runs = [ypea.CMAES(max_iter=30).solve(sphere10, seed=3)]
+    eigh = np.linalg.eigh
+    monkeypatch.setattr(np.linalg, "eigh", lambda C: (lambda w, B: (w, -B))(*eigh(C)))
+    runs.append(ypea.CMAES(max_iter=30).solve(sphere10, seed=3))
+    assert np.array_equal(runs[0].history.best_obj_value, runs[1].history.best_obj_value)

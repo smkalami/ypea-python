@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from ..algorithm import Algorithm, check, is_int, is_real
+from ..operators import NativeOperators
 
 
 class SA(Algorithm):
@@ -24,6 +25,12 @@ class SA(Algorithm):
     mutation_rate : probability that a component changes in a move (at least one changes)
     mutation_step_size : standard deviation of the Gaussian move (in code units)
     mutation_step_size_damp : the step size is multiplied by this after every iteration
+    space : "encoded" (the default) moves in the [0, 1] codes. "native" decodes each
+        variable, applies its native mutation (``ypea.operators``), and encodes the move
+        back. Types without native operators use the Gaussian move on their codes.
+    operators : dict, optional
+        Maps a variable name to an object with a ``mutate(x, rng)`` method, or a tuple
+        ``(None, mutate)``, used in place of the default move with ``space="native"``.
 
     delta follows the problem's comparison rules. With feasibility rules (the default) it
     is the difference in constraint violation when the violations differ, and the
@@ -40,13 +47,15 @@ class SA(Algorithm):
 
     def __init__(self, *, max_sub_iter=10, initial_temp=1000.0, final_temp=1.0, move_count=5,
                  mutation_rate=0.1, mutation_step_size=0.1, mutation_step_size_damp=0.99,
-                 pop_size=10, **kwargs):
+                 pop_size=10, space="encoded", operators=None, **kwargs):
         self.max_sub_iter = max_sub_iter
         self.initial_temp, self.final_temp = initial_temp, final_temp
         self.move_count = move_count
         self.mutation_rate = mutation_rate
         self.mutation_step_size = mutation_step_size
         self.mutation_step_size_damp = mutation_step_size_damp
+        self.space = space
+        self.operators = operators
         super().__init__(pop_size=pop_size, **kwargs)
 
     def validate(self):
@@ -60,6 +69,9 @@ class SA(Algorithm):
         check(is_real(self.mutation_step_size, 0), "mutation_step_size must be non negative")
         check(is_real(self.mutation_step_size_damp, 0) and self.mutation_step_size_damp > 0,
               "mutation_step_size_damp must be positive")
+        check(self.space in ("encoded", "native"), "space must be 'encoded' or 'native'")
+        check(self.operators is None or isinstance(self.operators, dict),
+              "operators must be a dict of variable name to operators, or None")
 
     def initialize(self):
         self.pop = self.random_population()
@@ -68,6 +80,17 @@ class SA(Algorithm):
         steps = self.planned_iterations(self.pop_size * self.move_count * self.max_sub_iter)
         self._temp_damp = (self.final_temp / self.initial_temp) ** (1 / steps)
         self._sigma = self.mutation_step_size
+        self._native = None
+        if self.space == "native":
+            self._native = NativeOperators(self.problem, self.operators, rate=self.mutation_rate,
+                                           sigma=self.mutation_step_size)
+
+    def move(self, X):
+        """Random moves of the solutions with codes ``X``."""
+        if not self._native:
+            return self.mutate(X)
+        self._native.set_sigma(self._sigma)
+        return self._native.apply("mutate", [X], self.rng, lambda c: (self.mutate(c),))[0]
 
     def mutate(self, X):
         n, d = X.shape
@@ -79,7 +102,7 @@ class SA(Algorithm):
         n, m = len(self.pop), self.move_count
         cmp = self.problem.comparator
         for _ in range(self.max_sub_iter):
-            moves = self.evaluate(self.mutate(np.repeat(self.pop.X, m, axis=0)))
+            moves = self.evaluate(self.move(np.repeat(self.pop.X, m, axis=0)))
             # best move of each solution (moves of solution i are rows i*m .. i*m + m - 1)
             ranks = self.ranks(moves).reshape(n, m)
             cand = moves[np.arange(n) * m + np.argmin(ranks, axis=1)]

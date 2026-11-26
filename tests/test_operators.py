@@ -1,0 +1,175 @@
+"""Native operators for GA and SA: type invariants, round trips, and native runs."""
+
+import pickle
+
+import numpy as np
+import pytest
+from problems import mixed_obj, sphere_obj
+
+import ypea
+from ypea.operators import (
+    BinarySelectionOperators,
+    IntegerOperators,
+    PermutationOperators,
+    RealOperators,
+    SelectionOperators,
+    cycle_crossover,
+    default_operators,
+    insertion,
+    inversion,
+    one_point_crossover,
+    order_crossover,
+    pmx,
+    scramble,
+    swap,
+    uniform_crossover,
+)
+
+VARS = [
+    ypea.Real("r", shape=4, lb=[-1, 0, 2, 5], ub=[1, 3, 2, 9]),
+    ypea.Integer("i", shape=(2, 3), lb=-2, ub=4),
+    ypea.Integer("one", lb=3, ub=3),
+    ypea.Binary("b", shape=7),
+    ypea.Permutation("p", n=9),
+    ypea.Permutation("pc", n=6, count=3),
+    ypea.Selection("s", n=8, k=3),
+    ypea.Selection("s1", n=5, k=1),
+    ypea.BinarySelection("bs", n=8, k=3),
+    ypea.BinarySelection("bsc", n=5, k=2, count=2),
+]
+
+
+def valid(var, y):
+    if isinstance(var, ypea.Real):
+        return np.all((y >= var.lb) & (y <= var.ub))
+    if isinstance(var, ypea.Integer):
+        return y.dtype.kind == "i" and np.all((y >= var.lb) & (y <= var.ub))
+    rows = y.reshape(-1, y.shape[-1])
+    if isinstance(var, ypea.Permutation):
+        return all(sorted(r) == list(range(var.n)) for r in rows)
+    if isinstance(var, ypea.Selection):
+        return all(len(set(r)) == var.k and r.min() >= 0 and r.max() < var.n for r in rows)
+    if isinstance(var, ypea.BinarySelection):
+        return np.all(rows.sum(axis=1) == var.k) and set(np.unique(rows)) <= {0, 1}
+    raise AssertionError(var)
+
+
+def outputs(var, rng):
+    x1, x2 = (var.decode(rng.random((30, var.code_size))) for _ in range(2))
+    ops = default_operators(var, rate=0.3, sigma=0.5)
+    yield from ops.crossover(x1, x2, rng)
+    yield ops.mutate(x1, rng)
+    if isinstance(var, ypea.Integer):
+        yield from uniform_crossover(x1, x2, rng)
+        yield from one_point_crossover(x1, x2, rng)
+    if isinstance(var, ypea.Permutation):
+        every = PermutationOperators(var, crossovers=(order_crossover, pmx, cycle_crossover),
+                                     mutations=(swap, inversion, insertion, scramble))
+        for c in every.crossovers:
+            yield from PermutationOperators(var, crossovers=(c,)).crossover(x1, x2, rng)
+        for m in every.mutations:
+            yield PermutationOperators(var, mutations=(m,)).mutate(x1, rng)
+
+
+@pytest.mark.parametrize("var", VARS, ids=lambda v: v.name)
+@pytest.mark.parametrize("rng", [0, 1, "studio"])
+def test_operators_keep_invariants_and_round_trip(var, rng):
+    rng = ypea.StudioRng(3) if rng == "studio" else np.random.default_rng(rng)
+    for _ in range(5):
+        for y in outputs(var, rng):
+            assert y.shape == (30, *var.shape)
+            assert valid(var, y)
+            back = var.decode(var.encode(y))
+            # reals round trip up to rounding, every other type exactly
+            assert np.allclose(back, y) if isinstance(var, ypea.Real) else np.array_equal(back, y)
+
+
+def test_operator_details():
+    p1, p2 = np.array([0, 1, 2, 3, 4, 5, 6, 7]), np.array([7, 6, 5, 4, 3, 2, 1, 0])
+    assert order_crossover(p1, p2, 2, 5).tolist() == [6, 5, 2, 3, 4, 1, 0, 7]
+    assert pmx(p1, p2, 2, 5).tolist() == [7, 6, 2, 3, 4, 5, 1, 0]
+    assert cycle_crossover(np.array([0, 1, 2, 3]), np.array([1, 0, 3, 2])).tolist() == [0, 1, 3, 2]
+    assert insertion(p1, 0, 3, None).tolist() == [1, 2, 3, 0, 4, 5, 6, 7]
+    assert inversion(p1, 5, 2, None).tolist() == [0, 1, 5, 4, 3, 2, 6, 7]
+    # creep stays within one step of the parent when sigma is small
+    var = ypea.Integer("i", shape=50, lb=0, ub=100)
+    x = np.full((4, 50), 50)
+    y = IntegerOperators(var, rate=1.0, sigma=0.0, creep=1.0).mutate(x, np.random.default_rng(0))
+    assert set(np.unique(np.abs(y - x))) == {1}
+    # the defaults of each type
+    kinds = {v.name: type(default_operators(v)) for v in VARS}
+    assert kinds["r"] is RealOperators and kinds["b"] is IntegerOperators
+    assert kinds["s"] is SelectionOperators and kinds["bs"] is BinarySelectionOperators
+    for v in (ypea.Partition("q", 5, 2), ypea.BinaryPartition("q", 5, 2), ypea.FixedSum("f", 3)):
+        assert default_operators(v) is None
+
+
+def test_default_space_is_unchanged(sphere10):
+    # values recorded from GA and SA before native operators were added
+    r = ypea.GA(max_nfe=3000, pop_size=30).solve(sphere10, seed=0)
+    assert r.best.obj_value == 0.0012462842352094355 and len(r.history.trace_nfe) == 143
+    r = ypea.SA(initial_temp=10, final_temp=1e-4, max_nfe=3000).solve(sphere10, seed=0)
+    assert r.best.obj_value == 0.48971543105868015 and len(r.history.trace_nfe) == 56
+
+
+NATIVE = {
+    "GA": lambda **k: ypea.GA(space="native", **k),
+    "SA": lambda **k: ypea.SA(space="native", initial_temp=10, final_temp=1e-3, pop_size=5, **k),
+}
+
+
+@pytest.mark.parametrize("name", NATIVE)
+def test_native_runs_on_every_variable_type(name, mixed):
+    alg = NATIVE[name](max_nfe=1500)
+    r = alg.solve(mixed, seed=0)
+    sol = r.best.solution
+    assert sorted(sol.p) == list(range(5)) and sum(len(g) for g in sol.q) == 6
+    assert np.isclose(sol.fs.sum(), 1) and r.best.obj_value == mixed_obj(sol)
+    a, b = alg.solve(mixed, seed=ypea.StudioRng(9)), alg.solve(mixed, seed=ypea.StudioRng(9))
+    assert np.array_equal(a.history.trace_obj_value, b.history.trace_obj_value)
+    assert np.array_equal(a.best.position, b.best.position)
+
+
+def tsp(n=40):
+    xy = np.random.default_rng(1).random((n, 2))
+    d = np.linalg.norm(xy[:, None] - xy[None], axis=2)
+    return ypea.Problem(ypea.Permutation("t", n=n), lambda s: float(d[s.t, np.roll(s.t, -1)].sum()))
+
+
+def knapsack(n=40):
+    r = np.random.default_rng(2)
+    w, v = r.integers(10, 60, n), r.integers(10, 60, n)
+    cap = w.sum() / 3
+    return ypea.Problem(ypea.Binary("b", shape=n), lambda s: (float(v @ s.b), float(w @ s.b - cap)), sense="max")
+
+
+@pytest.mark.parametrize("name", NATIVE)
+def test_native_beats_encoded(name):
+    def mean(problem, space):
+        alg = NATIVE[name](max_nfe=5000)
+        alg.space = space
+        rs = [alg.solve(problem, seed=s) for s in range(3)]
+        assert all(r.best.feasible for r in rs)
+        return np.mean([r.best.obj_value for r in rs])
+
+    assert mean(tsp(), "native") < mean(tsp(), "encoded")
+    assert mean(knapsack(), "native") > mean(knapsack(), "encoded")
+
+
+def module_swap_only(x, rng):
+    return PermutationOperators(None, mutations=(swap,)).mutate(x, rng)
+
+
+def test_user_operators_and_pickling():
+    problem = ypea.Problem([ypea.Permutation("p", n=8), ypea.Real("x", shape=2, lb=-5, ub=5)],
+                           lambda s: float(np.sum(s.p * np.arange(8))) + sphere_obj(s))
+    alg = ypea.GA(space="native", max_iter=5, operators={"p": (None, module_swap_only)})
+    a = alg.solve(problem, seed=4)
+    b = pickle.loads(pickle.dumps(alg)).solve(problem, seed=4)
+    assert np.array_equal(a.history.trace_obj_value, b.history.trace_obj_value)
+    assert a.history.trace_obj_value.tolist() != ypea.GA(space="native", max_iter=5).solve(
+        problem, seed=4).history.trace_obj_value.tolist()
+    with pytest.raises(ValueError, match="unknown variables"):
+        ypea.GA(space="native", operators={"nope": (None, swap)}, max_iter=2).solve(problem, seed=0)
+    with pytest.raises(ValueError, match="space"):
+        ypea.SA(space="decoded")

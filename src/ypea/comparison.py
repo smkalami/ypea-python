@@ -68,7 +68,8 @@ class Comparator:
         ranks = np.empty(len(order), dtype=float)
         # equal keys share the rank of the first one
         ps, ss = p[order], s[order]
-        same = np.r_[False, (ps[1:] == ps[:-1]) & (ss[1:] == ss[:-1])]
+        same = np.zeros(len(order), bool)
+        same[1:] = (ps[1:] == ps[:-1]) & (ss[1:] == ss[:-1])
         first = np.maximum.accumulate(np.where(same, 0, np.arange(len(order))))
         ranks[order] = first
         return ranks

@@ -22,7 +22,8 @@ classifiers = [
 [project.optional-dependencies]
 plot = ["matplotlib>=3.8"]
 stats = ["scipy>=1.12"]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=8", "ruff>=0.6", "scipy>=1.12"]
+docs = ["mkdocs-material", "mkdocstrings[python]"]
 
 [project.urls]
 Source = "https://github.com/smkalami/ypea-python"
@@ -45,6 +46,7 @@ addopts = "-m 'not slow'"
 filterwarnings = ["error::RuntimeWarning"]
 
 [tool.ruff]
+extend-exclude = ["review"]
 line-length = 120
 src = ["src"]
 

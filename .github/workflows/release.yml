@@ -22,6 +22,11 @@ jobs:
           test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME does not match version $version"; exit 1; }
       - run: pytest -q
       - run: python -m build
+      - name: Smoke test the built wheel in a clean environment
+        run: |
+          python -m venv /tmp/wheeltest
+          /tmp/wheeltest/bin/pip install dist/*.whl
+          cd /tmp && /tmp/wheeltest/bin/python -c "import ypea; print(ypea.__version__, len(ypea.algorithms.__all__))"
       - uses: actions/upload-artifact@v6
         with:
           name: dist

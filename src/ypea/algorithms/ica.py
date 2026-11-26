@@ -180,16 +180,17 @@ class ICA(Algorithm):
             return
         tc = self.total_costs(c)
         weakest = int(np.argmax(tc))
-        p = self.probs(tc)
-        p[weakest] = 0
+        # draw only among the other empires, so the weakest can never win its own colony
+        others = np.flatnonzero(np.arange(k) != weakest)
+        p = self.probs(tc)[others]
         p /= p.sum()
         members = np.flatnonzero(self.empire_of == weakest)
         colonies = members[members != self.imperialists[weakest]]
         if len(colonies):
-            self.empire_of[colonies[np.argmax(c[colonies])]] = self.rng.choice(k, p=p)
+            self.empire_of[colonies[np.argmax(c[colonies])]] = others[self.rng.choice(k - 1, p=p)]
         if len(colonies) <= 1:
             # the weakest empire has no colonies left: its imperialist joins another empire
-            self.empire_of[self.imperialists[weakest]] = self.rng.choice(k, p=p)
+            self.empire_of[self.imperialists[weakest]] = others[self.rng.choice(k - 1, p=p)]
             self.imperialists = np.delete(self.imperialists, weakest)
             self.empire_of[self.empire_of > weakest] -= 1
 

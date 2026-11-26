@@ -68,3 +68,22 @@ def test_collapse_moves_imperialist_to_another_empire(sphere10):
     alg.imperialists, alg.empire_of = np.array([0]), np.zeros(10, dtype=int)
     alg.compete(c)
     assert np.array_equal(alg.empire_of, np.zeros(10))
+
+
+class LastChoice:
+    """A stand-in generator whose choice always returns the last index, like u = 1 in a CDF draw."""
+
+    def choice(self, n, p=None):
+        assert p is not None and len(p) == n and np.isclose(p.sum(), 1)
+        return n - 1
+
+
+def test_competition_never_gives_the_weakest_empire_its_own_colony(sphere10):
+    alg = ICA(pop_size=10, empire_count=3, max_iter=1)
+    alg.solve(sphere10, seed=0)
+    alg.imperialists = np.array([0, 1, 2])
+    alg.empire_of = np.array([0, 1, 2, 0, 0, 1, 1, 0, 2, 2])
+    alg.rng = LastChoice()
+    c = np.linspace(0, 1, 10)  # empire 2 is the weakest, and country 9 its weakest colony
+    alg.compete(c)
+    assert alg.empire_of[9] == 1 and np.array_equal(alg.imperialists, [0, 1, 2])

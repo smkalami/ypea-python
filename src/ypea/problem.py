@@ -40,10 +40,13 @@ class Problem:
     name : str, optional
     optimum : float, optional
         Known optimal objective value. Results then report the error ``|f - optimum|``.
+    info : dict, optional
+        Free metadata, for example ``{"x_opt": ..., "source": ...}`` for benchmarks and test
+        problems. Values should be plain Python or NumPy data, so the problem can be pickled.
     """
 
     def __init__(self, vars, objective, sense="min", *, vectorized=False,
-                 constraints="feasibility", penalty=1e6, name=None, optimum=None):
+                 constraints="feasibility", penalty=1e6, name=None, optimum=None, info=None):
         self.vars = [vars] if isinstance(vars, Variable) else list(vars)
         if not self.vars or not all(isinstance(v, Variable) for v in self.vars):
             raise TypeError("vars must be a Variable or a non empty list of Variables")
@@ -62,6 +65,7 @@ class Problem:
         self.comparator = Comparator(self.sense, constraints, penalty)
         self.name = name or getattr(objective, "__name__", "problem")
         self.optimum = optimum
+        self.info = dict(info or {})
         sizes = [v.code_size for v in self.vars]
         self._slices = np.cumsum([0, *sizes])
         self.code_size = int(self._slices[-1])
@@ -81,7 +85,12 @@ class Problem:
                  zip(self.vars, self._slices[:-1], self._slices[1:], strict=True)}
         if self.vectorized:
             return Solution(**parts)
-        return [Solution(**{k: p[i] for k, p in parts.items()}) for i in range(len(X))]
+        # iterating a decoded array gives the same rows as indexing it
+        if len(parts) == 1:
+            (name, values), = parts.items()
+            return [Solution(**{name: v}) for v in values]
+        names = list(parts)
+        return [Solution(**dict(zip(names, row, strict=True))) for row in zip(*parts.values(), strict=True)]
 
     def decode_one(self, x) -> Solution:
         X = np.asarray(x, dtype=float).reshape(1, -1)
@@ -114,6 +123,8 @@ def parse_result(out):
 
 
 def _scalar(f):
+    if type(f) is float or type(f) is np.float64:
+        return float(f)
     try:
         return float(np.asarray(f, dtype=float).item())
     except ValueError:

@@ -63,6 +63,24 @@ class Result:
             return None
         return abs(self.best.obj_value - self.optimum)
 
+    def to_dict(self) -> dict:
+        """Plain Python data (JSON ready): settings, seed, best solution, history and trace."""
+        h = self.history
+        return _plain({
+            "algorithm": self.algorithm, "problem": self.problem, "params": self.params,
+            "seed": _seed(self.seed), "nfe": self.nfe, "iterations": self.iterations,
+            "run_time": self.run_time, "stop_reason": self.stop_reason, "optimum": self.optimum,
+            "error": self.error,
+            "best": {"obj_value": self.best.obj_value, "violation": self.best.violation,
+                     "feasible": self.best.feasible, "position": self.best.position,
+                     "solution": vars(self.best.solution) if hasattr(self.best.solution, "__dict__")
+                     else self.best.solution},
+            "history": {"iteration": h.iteration, "nfe": h.nfe, "best_obj_value": h.best_obj_value,
+                        "best_violation": h.best_violation, "time": h.time},
+            "trace": {"nfe": h.trace_nfe, "obj_value": h.trace_obj_value, "violation": h.trace_violation},
+            "extra": self.extra,
+        })
+
     def summary(self) -> str:
         lines = [
             f"{self.algorithm} on {self.problem}",
@@ -74,3 +92,29 @@ class Result:
         if self.optimum is not None:
             lines.insert(2, f"  error: {self.error:.6g}")
         return "\n".join(lines)
+
+
+def _seed(seed):
+    """A JSON form of a run's seed: an int, None, {"studio": n}, or a description."""
+    from .random import StudioRng
+
+    if seed is None or isinstance(seed, (int, np.integer)):
+        return None if seed is None else int(seed)
+    if isinstance(seed, StudioRng):
+        return {"studio": seed.seed}
+    return repr(seed)
+
+
+def _plain(obj):
+    """Turn NumPy values, arrays, tuples and nested containers into plain JSON data."""
+    if isinstance(obj, dict):
+        return {str(k): _plain(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_plain(v) for v in obj]
+    if isinstance(obj, np.ndarray):
+        return _plain(obj.tolist())
+    if isinstance(obj, np.generic):
+        return _plain(obj.item())
+    if isinstance(obj, float):
+        return obj if np.isfinite(obj) else str(obj)  # JSON has no inf or NaN
+    return obj

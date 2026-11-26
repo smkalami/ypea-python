@@ -5,8 +5,8 @@ type: software
 authors:
   - family-names: "Kalami Heris"
     given-names: "Mostapha"
-version: 0.3.0
-date-released: 2026-11-25
+version: 0.4.0
+date-released: 2026-11-26
 license: MIT
 repository-code: "https://github.com/smkalami/ypea-python"
 keywords:

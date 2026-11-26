@@ -1,0 +1,5 @@
+# data must stay byte for byte as published
+*.npz binary
+src/ypea/benchmarks/data/** -text
+src/ypea/problems/data/** -text
+tests/data/** -text

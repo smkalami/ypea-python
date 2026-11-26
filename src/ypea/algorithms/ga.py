@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from ..algorithm import Algorithm, check, is_int, is_real
+from ..operators import NativeOperators
 
 _SELECTION = {"random": "random", "rand": "random",
               "roulettewheel": "roulettewheel", "roulette": "roulettewheel", "rw": "roulettewheel",
@@ -26,6 +27,13 @@ class GA(Algorithm):
     selection : "roulettewheel" (rank based), "tournament" or "random"
     selection_pressure : pressure for roulette wheel selection
     tournament_size : number of competitors in tournament selection
+    space : "encoded" (the default) works on the [0, 1] codes. "native" decodes each
+        variable, applies its native operators (``ypea.operators``), and encodes the
+        children back. Types without native operators use the code operators.
+    operators : dict, optional
+        Maps a variable name to an object with ``crossover(x1, x2, rng)`` and/or
+        ``mutate(x, rng)`` methods, or a tuple ``(crossover, mutate)``, used in place of
+        the defaults with ``space="native"``. A missing or None entry keeps the default.
 
     Parents, mutants and children are merged, and the best ``pop_size`` survive.
     Roulette wheel selection uses ranks, so it does not depend on the scale or sign of
@@ -39,7 +47,8 @@ class GA(Algorithm):
 
     def __init__(self, *, crossover_prob=0.7, crossover_inflation=0.1, mutation_prob=0.3,
                  mutation_rate=0.1, mutation_step_size=0.1, mutation_step_size_damp=0.99,
-                 selection="roulettewheel", selection_pressure=5.0, tournament_size=3, **kwargs):
+                 selection="roulettewheel", selection_pressure=5.0, tournament_size=3, space="encoded",
+                 operators=None, **kwargs):
         self.crossover_prob = crossover_prob
         self.crossover_inflation = crossover_inflation
         self.mutation_prob = mutation_prob
@@ -49,6 +58,8 @@ class GA(Algorithm):
         self.selection = _SELECTION.get(str(selection).lower(), selection)
         self.selection_pressure = selection_pressure
         self.tournament_size = tournament_size
+        self.space = space
+        self.operators = operators
         super().__init__(**kwargs)
 
     def validate(self):
@@ -65,10 +76,17 @@ class GA(Algorithm):
         check(is_real(self.selection_pressure, 0), "selection_pressure must be non negative")
         check(is_int(self.tournament_size, 1),
               "tournament_size must be a positive integer")
+        check(self.space in ("encoded", "native"), "space must be 'encoded' or 'native'")
+        check(self.operators is None or isinstance(self.operators, dict),
+              "operators must be a dict of variable name to operators, or None")
 
     def initialize(self):
         self.pop = self.sort(self.random_population())
         self._sigma = self.mutation_step_size
+        self._native = None
+        if self.space == "native":
+            self._native = NativeOperators(self.problem, self.operators, alpha=self.crossover_inflation,
+                                           rate=self.mutation_rate, sigma=self.mutation_step_size)
 
     def select(self, count):
         """Indices of ``count`` parents from the current (sorted) population."""
@@ -101,10 +119,20 @@ class GA(Algorithm):
         children = []
         if nc:
             p = self.select(nc)
-            y1, y2 = self.crossover(self.pop.X[p[0::2]], self.pop.X[p[1::2]])
+            x1, x2 = self.pop.X[p[0::2]], self.pop.X[p[1::2]]
+            if self._native:
+                y1, y2 = self._native.apply("crossover", [x1, x2], self.rng, self.crossover)
+            else:
+                y1, y2 = self.crossover(x1, x2)
             children.append(self.evaluate(np.vstack([y1, y2])))
         if nm and self.mutation_rate > 0:  # rate 0 would only make clones
-            children.append(self.evaluate(self.mutate(self.pop.X[self.rng.integers(len(self.pop), size=nm)])))
+            x = self.pop.X[self.rng.integers(len(self.pop), size=nm)]
+            if self._native:
+                self._native.set_sigma(self._sigma)
+                y = self._native.apply("mutate", [x], self.rng, lambda c: (self.mutate(c),))[0]
+            else:
+                y = self.mutate(x)
+            children.append(self.evaluate(y))
         merged = self.pop.concat(self.pop, *children)
         self.pop = self.sort(merged)[:n] if len(merged) > n else self.sort(merged)
         self._sigma *= self.mutation_step_size_damp

@@ -229,7 +229,11 @@ class Algorithm:
         return Result(best=best, history=history, algorithm=self.short_name, params=self.params(),
                       problem=self.problem.name, seed=self.seed, nfe=self.nfe,
                       iterations=self.iter, run_time=float(t[-1]), stop_reason=stop_reason,
-                      optimum=self.problem.optimum)
+                      optimum=self.problem.optimum, extra=self.result_extra())
+
+    def result_extra(self) -> dict:
+        """Algorithm specific information to keep in ``Result.extra`` (override it)."""
+        return {}
 
     # helpers for subclasses
 

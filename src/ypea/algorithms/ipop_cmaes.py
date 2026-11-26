@@ -118,6 +118,10 @@ class IPOPCMAES(CMAES):
         finally:
             self.x0 = x0
 
+    def result_extra(self):
+        return {"restarts": self.restarts,
+                "restart_log": [(int(n), int(lam), str(r)) for n, lam, r in self.restart_log]}
+
     def stop_criterion(self):
         """Name of the restart criterion that holds for the current run, or None."""
         if self.gen == 0:

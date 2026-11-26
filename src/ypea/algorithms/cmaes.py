@@ -28,7 +28,9 @@ class CMAES(Algorithm):
     used both for evaluation and for the update. The default population size, weights and
     learning rates follow Table 1 of the tutorial (equations 48 to 58), with positive weights
     only (no active CMA, so the mu best samples are recombined, as in Appendix C). The step
-    size is capped at 1, the width of the search space.
+    size is capped at 1, the width of the search space. Samples use the symmetric root
+    B D B^T z of the covariance (the tutorial's B D z has the same distribution), so seeded
+    runs do not depend on the signs of the eigenvectors.
 
     Reference: N. Hansen, "The CMA Evolution Strategy: A Tutorial", arXiv:1604.00772 (2016).
     """
@@ -91,7 +93,9 @@ class CMAES(Algorithm):
         n, lam = self.dim, self.lam
         mu = len(self.weights)
         Z = self.rng.standard_normal((lam, n))
-        X = reflect(self.mean + self.sigma * (Z * self.D) @ self.B.T)
+        # symmetric root C^(1/2) z = B D B^T z (Hansen uses B D z, also valid): seeded runs then
+        # do not depend on the signs or basis of the eigenvectors
+        X = reflect(self.mean + self.sigma * ((Z @ self.B) * self.D) @ self.B.T)
         self.pop = self.evaluate(X)
         order = self.argsort(self.pop)[:mu]
         Y = (self.pop.X[order] - self.mean) / self.sigma  # steps actually taken (after reflection)
