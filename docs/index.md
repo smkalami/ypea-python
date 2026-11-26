@@ -1,6 +1,6 @@
 # YPEA for Python
 
-Yarpiz Evolutionary Algorithms (YPEA) is a Python toolbox of metaheuristics. You define an optimization problem once, then solve it with any of 21 algorithms: evolutionary algorithms, swarm intelligence methods, CMA-ES, adaptive differential evolution, and two reference methods.
+Yarpiz Evolutionary Algorithms (YPEA) is a Python toolbox of metaheuristics. You define an optimization problem once, then solve it with any of 26 algorithms: evolutionary algorithms, swarm intelligence methods, CMA-ES, adaptive differential evolution, multi-objective algorithms, and two reference methods.
 
 It is the Python version of [YPEA for MATLAB](https://github.com/smkalami/ypea), redesigned, with the known defects fixed and each algorithm checked against its paper.
 

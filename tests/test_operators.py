@@ -10,6 +10,7 @@ import ypea
 from ypea.operators import (
     BinarySelectionOperators,
     IntegerOperators,
+    NativeOperators,
     PartitionOperators,
     PermutationOperators,
     RealOperators,
@@ -153,8 +154,8 @@ def test_partition_ordering_numbers_separators_by_group():
 
 
 def test_default_space_is_unchanged(sphere10):
-    # values recorded from GA and SA before native operators were added
-    r = ypea.GA(max_nfe=3000, pop_size=30).solve(sphere10, seed=0)
+    # values recorded from GA and SA before native operators were added (GA with its old default inflation)
+    r = ypea.GA(max_nfe=3000, pop_size=30, crossover_inflation=0.1).solve(sphere10, seed=0)
     assert r.best.obj_value == 0.0012462842352094355 and len(r.history.trace_nfe) == 143
     r = ypea.SA(initial_temp=10, final_temp=1e-4, max_nfe=3000).solve(sphere10, seed=0)
     assert r.best.obj_value == 0.48971543105868015 and len(r.history.trace_nfe) == 56
@@ -233,3 +234,20 @@ def test_user_operators_and_pickling():
         ypea.GA(space="native", operators={"nope": (None, swap)}, max_iter=2).solve(problem, seed=0)
     with pytest.raises(ValueError, match="space"):
         ypea.SA(space="decoded")
+
+
+def test_native_mutation_changes_each_variable_with_probability_one_over_k():
+    problem = ypea.Problem([ypea.Permutation(f"p{i}", n=6) for i in range(4)],
+                           lambda s: float(sum(np.sum(getattr(s, f"p{i}") * np.arange(6)) for i in range(4))))
+    ops = NativeOperators(problem)
+    X = np.random.default_rng(0).random((4000, problem.code_size))
+    Y = ops.apply("mutate", [X], np.random.default_rng(1), lambda c: (c,))[0]
+    changed = np.stack([(Y[:, a:b] != X[:, a:b]).any(axis=1) for a, b in ops.slices], axis=1)
+    assert changed.any(axis=1).all()  # at least one variable per mutant
+    # P(changed) = 1/4 plus the forced pick when none was drawn: 1/4 + (3/4)^4 / 4 = 0.329
+    assert np.allclose(changed.mean(axis=0), 0.25 + 0.75**4 / 4, atol=0.03)
+    one = ypea.Problem(ypea.Permutation("p", n=6), lambda s: 0.0)
+    X1 = X[:, :6]
+    Y1 = NativeOperators(one).apply("mutate", [X1], np.random.default_rng(1), lambda c: (c,))[0]
+    Z1 = PermutationOperators(one.vars[0]).mutate(one.vars[0].decode(X1), np.random.default_rng(1))
+    assert np.array_equal(one.vars[0].decode(Y1), Z1)  # one variable: no extra draws

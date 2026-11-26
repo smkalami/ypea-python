@@ -111,8 +111,8 @@ def test_sweep():
     assert list(exp.algorithms) == ["DE(crossover_prob=0.5)", "DE(crossover_prob=0.8)"]
     alg = exp._algs["DE(crossover_prob=0.8)"]
     assert alg.crossover_prob == 0.8 and alg.pop_size == 10 and alg.max_nfe == 50
-    exp = Experiment.sweep(ypea.DE, [{"beta_min": 0.5}, {"beta_min": 0.6, "crossover_prob": 0.1}], make_problems()[:1])
-    assert list(exp.algorithms) == ["DE(beta_min=0.5)", "DE(beta_min=0.6, crossover_prob=0.1)"]
+    exp = Experiment.sweep(ypea.DE, [{"beta_min": 0.3}, {"beta_min": 0.4, "crossover_prob": 0.1}], make_problems()[:1])
+    assert list(exp.algorithms) == ["DE(beta_min=0.3)", "DE(beta_min=0.4, crossover_prob=0.1)"]
 
 
 def test_exports_contain_the_numbers(tmp_path):
@@ -232,3 +232,89 @@ def test_zero_below_follows_the_cec_rule(tmp_path):
     rep.zero_below = 1e-8
     floored = rep.values("NM", p.name)
     assert np.all(raw < 1e-8) and np.all(floored == 0)
+
+
+# several objectives
+
+
+def mo_problems():
+    return [ypea.benchmarks.multi_problem("zdt1", dim=6, front_points=200),
+            ypea.benchmarks.multi_problem("dtlz2", m=3, front_points=100)]
+
+
+def test_igd_and_hypervolume_are_stored_and_compared(tmp_path):
+    algs = {"NSGA-II": ypea.NSGAII(pop_size=20), "RS": ypea.RandomSearch(pop_size=20)}
+    exp = Experiment(algs, mo_problems(), runs=3, max_nfe=600, seed=1, output=tmp_path, checkpoints=(0.5, 1.0))
+    rep = exp.run().report()
+    meta = rep.metadata["problems"][0]["indicators"]
+    assert meta["front_points"] == 200 and meta["ideal"] == [0.0, 0.0] and meta["ref_point"] == [1.1, 1.1]
+    p = mo_problems()[1]
+    rec = rep.records("RS", p.name)[0]
+    front = np.array(rec["result"]["front"]["obj_values"])
+    igd = ypea.indicators.igd(front, p.info["pareto_front"])
+    assert rec["indicators"]["igd"] == pytest.approx(igd)
+    # the DTLZ2 front spans [0, 1] in every objective, so the normalized values are the raw ones
+    assert rec["indicators"]["hypervolume"] == pytest.approx(ypea.indicators.hypervolume(front, [1.1] * 3))
+    cp = rec["checkpoints"]
+    assert cp["nfe"] == [300, 600] and cp["igd"][1] == pytest.approx(igd) and cp["igd"][0] >= cp["igd"][1]
+    assert cp["hypervolume"][0] <= cp["hypervolume"][1]
+    # error means IGD with a true front, smaller is better, and hypervolume is larger is better
+    t = rep.table(stats=("mean",))
+    assert "mean IGD" in t.notes[-1] and rep.smaller_is_better(p.name)
+    assert t.data["describe"][p.name]["RS"]["mean"] == pytest.approx(rep.values("RS", p.name, "igd").mean())
+    assert not rep.smaller_is_better(p.name, "hypervolume")
+    t = rep.table(metric="hypervolume", stats=("mean",))
+    assert "mean hypervolume" in t.notes[-1]
+    assert t.data["friedman"]["ranks"].tolist() == [1.0, 2.0]  # NSGA-II beats random search
+    grid, curves = rep.curves("RS", p.name, "igd")
+    assert grid.tolist() == [300, 600] and curves[0].tolist() == pytest.approx(cp["igd"])
+    with pytest.raises(ValueError, match="igd"):
+        rep.values("RS", p.name, "obj_value")
+    with pytest.raises(ValueError, match="one objective"):
+        Report.load(make_exp(tmp_path / "single").run().output).values("PSO", "sphere3", "igd")
+
+
+def test_several_objectives_follow_the_senses_and_keep_single_objective_keys(tmp_path):
+    def run(problems, out):
+        exp = Experiment([ypea.RandomSearch(pop_size=20)], problems, runs=1, max_nfe=200, seed=2, output=out)
+        return exp.run().report()
+
+    p = mo_problems()[0]
+    q = ypea.Problem(p.vars, Negated(p.objective), vectorized=True, sense="max", n_obj=2, name=p.name,
+                     info={"pareto_front": -p.info["pareto_front"]})
+    a, b = (run([x], tmp_path / str(i)).records("RS", p.name)[0] for i, x in enumerate((p, q)))
+    assert a["indicators"] == b["indicators"] and a["checkpoints"]["hypervolume"] == b["checkpoints"]["hypervolume"]
+    # single objective runs have no indicators, and their keys do not mention them
+    rec = run(make_problems()[:1], tmp_path / "s").records("RS", "sphere3")[0]
+    assert "indicators" not in rec and "indicators" not in rec["settings"]
+    # without max_nfe there are no checkpoints, but the final values are there
+    exp = Experiment([ypea.RandomSearch(pop_size=20, max_iter=3)], [p], runs=2, seed=2)
+    rep = exp.run().report()
+    assert rep.records("RS", p.name)[0]["checkpoints"] is None and len(rep.values("RS", p.name)) == 2
+    with pytest.raises(ValueError, match="checkpoints"):
+        rep.curves("RS", p.name)
+
+
+class Negated:
+    def __init__(self, fn):
+        self.fn = fn
+
+    def __call__(self, sol):
+        return -self.fn(sol)
+
+
+def test_multi_objective_report_figures_and_html(tmp_path):
+    pytest.importorskip("matplotlib")
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    exp = Experiment([ypea.RandomSearch(pop_size=20), ypea.MOEAD(pop_size=20)], mo_problems()[:1], runs=2,
+                     max_nfe=300, seed=0, output=tmp_path)
+    rep = exp.run().report()
+    ax = rep.plot_convergence(mo_problems()[0].name)
+    assert ax.get_ylabel() == "IGD"
+    plt.close("all")
+    page = rep.save_html(metric="hypervolume").read_text("utf-8")
+    assert "mean hypervolume" in page and page.count("<img") == 3

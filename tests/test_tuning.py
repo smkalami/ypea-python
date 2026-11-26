@@ -50,6 +50,8 @@ def test_sampled_settings_are_valid_and_run(cls):
             assert v in p.values if p.kind == "cat" else p.low <= v <= p.high
         cls(**s)  # raises if validate() rejects it
     prob = problem("sphere", 3)
+    if cls.objectives == "multi":
+        prob = ypea.Problem(ypea.Real("x", shape=3, lb=0, ub=1), lambda sol: sol.x[:, :2], vectorized=True, n_obj=2)
     for s in settings[:2]:
         assert cls(**s, max_nfe=200).solve(prob, seed=0).nfe <= 200
 

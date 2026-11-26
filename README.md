@@ -2,7 +2,7 @@
 
 Yarpiz Evolutionary Algorithms (YPEA) is a toolbox for defining an optimization problem once and solving it with any of its 21 metaheuristics. This is the Python version of [YPEA for MATLAB](https://github.com/smkalami/ypea), redesigned and with the known defects fixed.
 
-**Status:** early development (0.5.0).
+**Status:** early development (0.6.0).
 
 ## Install
 
@@ -37,7 +37,7 @@ Any other algorithm solves the same problem, for example `ypea.LSHADE(max_nfe=20
 
 ## Features
 
-- **21 algorithms:** the 15 of YPEA for MATLAB (ABC, ACOR, BA, BBO, CA, CMA-ES, DE, FA, GA, HS, ICA, IWO, PSO, SA, TLBO), the modern baselines JADE, SHADE, L-SHADE and IPOP-CMA-ES, and the reference methods Random Search and Nelder-Mead.
+- **26 algorithms:** the 15 of YPEA for MATLAB (ABC, ACOR, BA, BBO, CA, CMA-ES, DE, FA, GA, HS, ICA, IWO, PSO, SA, TLBO), the modern baselines JADE, SHADE, L-SHADE and IPOP-CMA-ES, the multi-objective algorithms NSGA-II, NSGA-III, MOEA/D, MOPSO and SPEA2, and the reference methods Random Search and Nelder-Mead.
 - **Every variable type for every algorithm:** real, integer, binary, permutation, selection, partition and fixed sum variables, all encoded in [0, 1]. GA and SA also have native operators for permutations, selections, integers and reals (`space="native"`).
 - **Constraints built in:** the objective may return `(f, g)` with `g <= 0`. Deb's feasibility rules by default, or a penalty.
 - **Reproducible and exact:** the same seed gives the same result, the evaluation budget is never exceeded, and every improvement is recorded. `seed=ypea.StudioRng(n)` draws the same numbers as YPEA Studio.
@@ -54,7 +54,7 @@ The documentation site is at [smkalami.github.io/ypea-python](https://smkalami.g
 
 For this Python version (see `CITATION.cff`):
 
-Mostapha Kalami Heris, YPEA: Yarpiz Evolutionary Algorithms for Python, version 0.5.0, 2026. https://github.com/smkalami/ypea-python
+Mostapha Kalami Heris, YPEA: Yarpiz Evolutionary Algorithms for Python, version 0.6.0, 2026. https://github.com/smkalami/ypea-python
 
 For the original MATLAB toolbox:
 

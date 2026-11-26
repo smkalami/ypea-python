@@ -38,6 +38,10 @@ class CA(Algorithm):
            inside the interval
 
         When x_j equals s_j (types 2 and 3) the step keeps its random sign.
+
+        The four types follow Reynolds and Chung (1997), with every step multiplied by
+        ``alpha`` (``alpha=1`` reproduces types 1, 3 and 4), and type 2 uses the fixed
+        step 0.1 * alpha in place of a self adapted strategy parameter.
     alpha : step size
     beta : scaling factor of the step inside the normative interval (type 4)
     selection : True (default) selects the best ``pop_size`` of parents and offspring.
@@ -59,6 +63,9 @@ class CA(Algorithm):
     C.-J. Chung and R. G. Reynolds, "CAEP: an evolution-based tool for real-valued
     function optimization using cultural algorithms", International Journal on
     Artificial Intelligence Tools, 7(3), 1998, pp. 239 to 291.
+    R. G. Reynolds and C.-J. Chung, "Knowledge-based self-adaptation in evolutionary
+    programming using cultural algorithms", Proceedings of the IEEE International
+    Conference on Evolutionary Computation, 1997 (the source of the influence types).
     """
 
     name = "Cultural Algorithm"

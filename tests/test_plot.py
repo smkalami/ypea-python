@@ -41,3 +41,28 @@ def test_report_figures(tmp_path):
     assert len(rep.plot_ranks().patches) == 2
     assert rep.plot_convergence("sphere2", metric="obj_value").get_ylabel() == "Best objective value"
     plt.close("all")
+
+
+def test_front_plots():
+    from ypea.benchmarks.multi import pareto_front
+
+    true2 = pareto_front("zdt1", 50)
+    ax = ypea.plot.front(true2[::5] + 0.1, true2[::7] + 0.2, true_front=true2, labels=["A", "B"])
+    assert len(ax.collections) == 3 and [t.get_text() for t in ax.get_legend().get_texts()] == ["True front", "A", "B"]
+    true3 = pareto_front("dtlz2", 30, m=3)
+    ax = ypea.plot.front(true3, objectives=["cost", "weight", "risk"])
+    assert ax.name == "3d" and ax.get_zlabel() == "risk"
+    with pytest.raises(ValueError, match="3d"):
+        ypea.plot.front(true3, ax=plt.figure().gca())
+    true5 = pareto_front("dtlz2", 30, m=5)
+    ax = ypea.plot.front(true5[:4], true_front=true5)
+    assert len(ax.lines) == 4 + len(true5) and len(ax.get_xticks()) == 5
+    ax = ypea.plot.front(true2, kind="parallel")
+    assert len(ax.lines) == len(true2)
+    with pytest.raises(ValueError):
+        ypea.plot.front(true5, kind="scatter")
+    with pytest.raises(ValueError):
+        ypea.plot.front(true2, true3)
+    with pytest.raises(ValueError):
+        ypea.plot.front()
+    plt.close("all")

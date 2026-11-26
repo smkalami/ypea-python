@@ -6,6 +6,13 @@ See the user guide page [Native operators](../guide/operators.md) for an overvie
     options:
       show_root_heading: false
       members:
+        - SBX
+        - PolynomialMutation
+        - NativeCrossover
+        - NativeMutation
+        - Crossover
+        - Mutation
+        - check_operator
         - RealOperators
         - IntegerOperators
         - PermutationOperators

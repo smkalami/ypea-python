@@ -46,8 +46,9 @@ class DE(Algorithm):
     crossover_method : "bin" or "exp"
     crossover_prob : crossover rate CR
     beta_min, beta_max : the scale factor is drawn uniformly from [beta_min, beta_max]
-        for every component (jitter, in the terms of Price, Storn and Lampinen), as in YPEA
-        for MATLAB.
+        for every component (jitter, in the terms of Price, Storn and Lampinen). The default
+        is the fixed F = 0.5 of Storn and Price. ``beta_min=0.2, beta_max=0.9`` gives the
+        jitter of YPEA for MATLAB.
 
     A trial vector replaces its target when it is at least as good, the convention of Price,
     Storn and Lampinen (2005), which helps on flat regions. The 1995 report replaces only
@@ -61,7 +62,7 @@ class DE(Algorithm):
     short_name = "DE"
 
     def __init__(self, strategy=None, *, base_vector="rand", diff_vectors_count=1,
-                 crossover_method="bin", crossover_prob=0.2, beta_min=0.2, beta_max=0.9, **kwargs):
+                 crossover_method="bin", crossover_prob=0.2, beta_min=0.5, beta_max=0.5, **kwargs):
         if strategy is not None:
             base_vector, diff_vectors_count, crossover_method = parse_strategy(strategy)
         self.base_vector = _BASES.get(base_vector, base_vector)

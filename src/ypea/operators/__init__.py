@@ -1,10 +1,24 @@
-"""Native operators for GA and SA.
+"""Operators for the algorithms that recombine.
+
+``crossover=`` and ``mutation=`` settings take the operators of ``ypea.operators.library``
+(also available here): ``SBX`` and ``PolynomialMutation`` in the [0, 1] code space, and
+``NativeCrossover`` and ``NativeMutation`` for native values. Each one declares its
+``space``, and the algorithm checks that it fits before the run.
+
+The rest of this module holds the native operators of GA and SA.
 
 A native operator works on decoded values of one variable: a batch of shape (n, *shape).
 A crossover takes two parent batches and returns two child batches. A mutation takes one
 batch and returns one. Every operator keeps the invariants of its type (a permutation
 stays a permutation, k ones stay k ones, values stay in their bounds), so
-``decode(encode(y)) == y`` holds for every output.
+``decode(encode(y)) == y`` holds for every output (exactly, except for Real values, which
+come back up to floating point rounding).
+
+In a problem with several variables, a crossover applies to every variable, and a mutation
+changes each variable with probability 1/k (k variables), with at least one per row. The
+settings ``rate`` and ``sigma`` (GA ``mutation_rate`` and ``mutation_step_size``) only affect
+Real and Integer variables. The ordering, selection and partition operators ignore them
+(but GA with ``mutation_rate=0`` makes no mutants at all).
 
 The algorithm decodes the parents' codes, applies each variable's operator, and encodes
 the result back. Partition and BinaryPartition use the permutation operators on their
@@ -33,6 +47,16 @@ from ..variables import (
     Selection,
     _ranks_to_codes,
 )
+from .library import (
+    SBX,
+    Crossover,
+    Mutation,
+    NativeCrossover,
+    NativeMutation,
+    Operator,
+    PolynomialMutation,
+    check_operator,
+)
 
 __all__ = [
     "uniform_crossover", "one_point_crossover",
@@ -41,6 +65,8 @@ __all__ = [
     "RealOperators", "IntegerOperators", "PermutationOperators",
     "SelectionOperators", "BinarySelectionOperators", "PartitionOperators",
     "default_operators", "NativeOperators",
+    "Operator", "Crossover", "Mutation", "SBX", "PolynomialMutation", "NativeCrossover", "NativeMutation",
+    "check_operator",
 ]
 
 
@@ -323,10 +349,12 @@ def _user(ops):
 
 
 class NativeOperators:
-    """The operators of one run: the user's ones where given, otherwise the defaults,
-    otherwise the algorithm's code operators on that variable's slice of the codes."""
+    """The operators of one run: the user's ones where given (``operators`` per variable,
+    then the native ``crossover`` and ``mutation`` operators for the variable types they
+    list), otherwise the defaults, otherwise the algorithm's code operators on that
+    variable's slice of the codes."""
 
-    def __init__(self, problem, operators=None, **params):
+    def __init__(self, problem, operators=None, *, crossover=None, mutation=None, **params):
         operators = dict(operators or {})
         unknown = set(operators) - {v.name for v in problem.vars}
         if unknown:
@@ -335,6 +363,7 @@ class NativeOperators:
         self.slices = list(pairwise(np.cumsum([0, *(v.code_size for v in problem.vars)])))
         self.defaults = [default_operators(v, **params) for v in self.vars]
         self.user = [_user(operators.get(v.name)) for v in self.vars]
+        self.native = {"crossover": crossover, "mutate": mutation}
 
     def set_sigma(self, sigma):
         for d in self.defaults:
@@ -344,15 +373,30 @@ class NativeOperators:
     def apply(self, method, parents, rng, fallback):
         """Apply ``method`` ("crossover" or "mutate") to code batches ``parents`` and return
         code batches. ``fallback(*code_slices)`` returns a tuple of code slices."""
-        out = [np.empty_like(p) for p in parents]
-        for v, (a, b), user, default in zip(self.vars, self.slices, self.user, self.defaults, strict=True):
-            fn = getattr(user, method, None) or getattr(default, method, None)
-            parts = [p[:, a:b] for p in parents]
+        out = [p.copy() for p in parents]
+        k, n = len(self.vars), len(parents[0])
+        picked = None
+        if method == "mutate" and k > 1:
+            # each variable mutates with probability 1/k, and at least one per row, so a good move in
+            # one variable is not always paired with forced changes in all the others
+            picked = rng.random((n, k)) < 1 / k
+            none = np.flatnonzero(~picked.any(axis=1))
+            if len(none):
+                picked[none, rng.integers(k, size=len(none))] = True
+        for idx, (v, (a, b), user, default) in enumerate(zip(self.vars, self.slices, self.user, self.defaults,
+                                                             strict=True)):
+            rows = slice(None) if picked is None else np.flatnonzero(picked[:, idx])
+            if picked is not None and not len(rows):
+                continue
+            op = self.native[method]
+            fn = (getattr(user, method, None) or (op if op is not None and type(v) in op.types else None)
+                  or getattr(default, method, None))
+            parts = [p[rows, a:b] for p in parents]
             if fn is None:
                 ys = fallback(*parts)
             else:
                 ys = fn(*(v.decode(q) for q in parts), rng)
                 ys = [v.encode(y) for y in (ys if method == "crossover" else (ys,))]
             for o, y in zip(out, ys, strict=True):
-                o[:, a:b] = y
+                o[rows, a:b] = y
         return out

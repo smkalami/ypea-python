@@ -2,7 +2,7 @@
 
 ## The algorithms
 
-YPEA has 21 algorithms. Each has its own page with every setting, its default and the reference paper (see the [list of algorithms](../algorithms/index.md)).
+YPEA has 26 algorithms. Each has its own page with every setting, its default and the reference paper (see the [list of algorithms](../algorithms/index.md)).
 
 | Family | Algorithms |
 |---|---|
@@ -12,6 +12,7 @@ YPEA has 21 algorithms. Each has its own page with every setting, its default an
 | Adaptive DE | [JADE](../algorithms/jade.md), [SHADE](../algorithms/shade.md), [L-SHADE](../algorithms/lshade.md) |
 | Single solution | [SA](../algorithms/sa.md), [Nelder-Mead](../algorithms/nelder-mead.md) |
 | Reference | [Random Search](../algorithms/random-search.md) |
+| Multiple objectives | [NSGA-II](../algorithms/nsga2.md), [NSGA-III](../algorithms/nsga3.md), [MOEA/D](../algorithms/moead.md), [MOPSO](../algorithms/mopso.md), [SPEA2](../algorithms/spea2.md) |
 
 ## Choosing an algorithm
 
@@ -21,6 +22,7 @@ No algorithm is best on every problem, so compare a few on your problem with an 
 - **Smooth or badly scaled continuous problems, or a small budget:** CMA-ES adapts to the shape of the function. Nelder-Mead is a fast local method for a few variables.
 - **A simple and robust first try:** DE or PSO, with few settings to choose.
 - **Permutations, selections and binary problems:** GA and SA with `space="native"` use operators made for these types (see [Native operators](operators.md)). The other algorithms also work through the [0, 1] codes.
+- **Several objectives:** NSGA-II for two or three objectives, NSGA-III for three or more (see [Multiple objectives](multi-objective.md)).
 - **A baseline:** every method should beat Random Search with the same budget.
 
 ## Common settings
@@ -47,7 +49,7 @@ print(de)
 ```
 
 ```text
-DE(strategy='DE/rand/1/bin', base_vector='rand', diff_vectors_count=1, crossover_method='bin', crossover_prob=0.5, beta_min=0.2, beta_max=0.9, max_iter=None, pop_size=50, max_nfe=20000, target=None, max_time=None, display=False)
+DE(strategy='DE/rand/1/bin', base_vector='rand', diff_vectors_count=1, crossover_method='bin', crossover_prob=0.5, beta_min=0.5, beta_max=0.5, max_iter=None, pop_size=50, max_nfe=20000, target=None, max_time=None, display=False)
 ```
 
 `de.params()` returns the same settings as a dict.

@@ -15,8 +15,14 @@ class Print:
     def __call__(self, alg):
         if alg.iter % self.every == 0:
             b = alg.best
+            if b is None:  # several objectives
+                print(f"Iteration {alg.iter}: Front size = {len(alg.front)}, NFE = {alg.nfe}")
+                return
             extra = "" if b.V[0] <= 0 else f", violation = {b.V[0]:.3g}"
             print(f"Iteration {alg.iter}: Best Obj. Value = {b.F[0, 0]:.6g}{extra}, NFE = {alg.nfe}")
 
     def on_end(self, alg, result):
+        if result.best is None:
+            print(f"Finished: {result.stop_reason}, front size = {len(result.front)}")
+            return
         print(f"Finished: {result.stop_reason}, best = {result.best.obj_value:.6g}")

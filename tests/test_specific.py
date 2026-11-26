@@ -134,3 +134,18 @@ def test_cmaes_does_not_depend_on_eigenvector_signs(monkeypatch, sphere10):
     monkeypatch.setattr(np.linalg, "eigh", lambda C: (lambda w, B: (w, -B))(*eigh(C)))
     runs.append(ypea.CMAES(max_iter=30).solve(sphere10, seed=3))
     assert np.array_equal(runs[0].history.best_obj_value, runs[1].history.best_obj_value)
+
+
+def test_pso_linear_inertia_and_velocity_limit(sphere10):
+    seen = []
+
+    def watch(alg):
+        seen.append((alg._w, float(np.abs(alg.velocity).max())))
+
+    ypea.PSO(w=0.9, w_final=0.4, max_velocity=0.1, max_iter=11).solve(sphere10, seed=0, callbacks=[watch])
+    assert np.isclose(seen[0][0], 0.9) and np.isclose(seen[-1][0], 0.4)
+    assert max(v for _, v in seen) <= 0.1
+    # the defaults are unchanged
+    a = ypea.PSO(max_nfe=2000).solve(sphere10, seed=1)
+    b = ypea.PSO(max_nfe=2000, w_final=None, max_velocity=None).solve(sphere10, seed=1)
+    assert np.array_equal(a.history.trace_obj_value, b.history.trace_obj_value)

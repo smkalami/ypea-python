@@ -40,3 +40,15 @@ Four modern baselines for benchmark studies and two reference methods. See also 
 | [`IPOPCMAES`](ipop-cmaes.md) | CMA-ES with Restarts and Increasing Population Size | 4 + floor(3 ln n), doubled at each restart |
 | [`NelderMead`](nelder-mead.md) | Nelder-Mead Simplex | n + 1 vertices |
 | [`RandomSearch`](random-search.md) | Random Search | 100 |
+
+## Multiple objectives
+
+Algorithms for problems with several objectives. See [Multiple objectives](../guide/multi-objective.md). In the table, H is the number of reference points.
+
+| Class | Algorithm | Default population |
+|---|---|---|
+| [`NSGAII`](nsga2.md) | Non-dominated Sorting Genetic Algorithm II | 100 |
+| [`NSGAIII`](nsga3.md) | Non-dominated Sorting Genetic Algorithm III | the smallest multiple of 4 at least H |
+| [`MOEAD`](moead.md) | Multiobjective Evolutionary Algorithm Based on Decomposition | the largest Das and Dennis lattice with at most 100 points |
+| [`MOPSO`](mopso.md) | Multi-Objective Particle Swarm Optimization | 100 |
+| [`SPEA2`](spea2.md) | Strength Pareto Evolutionary Algorithm 2 | 100, archive 100 |

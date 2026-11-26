@@ -8,11 +8,11 @@ import time
 
 import numpy as np
 
-from .evaluation import Evaluator
+from .evaluation import Evaluator, StopRun
 from .population import Individual, Population
 from .problem import Problem
 from .random import StudioRng
-from .result import History, Result
+from .result import Evaluations, Front, History, Result
 
 
 def check(cond, message):
@@ -51,10 +51,19 @@ class Algorithm:
     Inside ``initialize()`` and ``iterate()`` a subclass can use ``self.rng``,
     ``self.problem``, ``self.pop``, ``self.iter``, ``self.nfe``, ``self.best`` and the
     helpers below. The best solution so far is tracked automatically.
+
+    ``objectives`` says which problems the algorithm solves: "single" (one objective),
+    "multi" (several) or "both". ``solve`` and ``ask_tell`` check it. An algorithm that
+    solves several objectives reads the archive of non-dominated solutions as
+    ``self.front`` (``self.best`` is then None), and may take a ``max_archive`` setting
+    (stored under that name), which limits the archive by crowding distance.
     """
 
     name = "Abstract Algorithm"
     short_name = "ALG"
+
+    #: "single", "multi" or "both": the number of objectives the algorithm handles
+    objectives = "single"
 
     def __init__(self, *, max_iter=None, pop_size=100, max_nfe=None, target=None,
                  max_time=None, display=False):
@@ -130,10 +139,12 @@ class Algorithm:
         check(self.max_nfe is None or is_int(self.max_nfe, 1), "max_nfe must be a positive integer or None")
         check(self.target is None or is_real(self.target), "target must be a number or None")
         check(self.max_time is None or is_real(self.max_time, 0), "max_time must be a positive number or None")
+        check(getattr(self, "max_archive", None) is None or is_int(self.max_archive, 1),
+              "max_archive must be a positive integer or None")
 
     # running
 
-    def solve(self, problem: Problem, *, seed=None, callbacks=(), executor=None) -> Result:
+    def solve(self, problem: Problem, *, seed=None, callbacks=(), executor=None, keep_evaluations=False) -> Result:
         """Solve ``problem`` and return a ``Result``.
 
         seed : int, numpy Generator, ypea.StudioRng, or None
@@ -146,15 +157,58 @@ class Algorithm:
             and ``on_end(algorithm, result)``.
         executor : concurrent.futures.Executor, optional
             Evaluate solutions in parallel (not used for vectorized problems).
+        keep_evaluations : bool
+            Keep every evaluated solution in ``Result.evaluations`` (off by default,
+            because it needs memory for all of them).
         """
+        self._check(problem)
+        if problem.objective is None:
+            raise ValueError("this problem has no objective: evaluate its solutions with ask_tell()")
+        return self._run(problem, seed, callbacks, Evaluator(problem, self.max_nfe, self.target, executor,
+                                                             **self._evaluator_options(keep_evaluations)))
+
+    def _evaluator_options(self, keep_evaluations):
+        return {"max_archive": getattr(self, "max_archive", None), "keep_evaluations": bool(keep_evaluations)}
+
+    def ask_tell(self, problem: Problem, *, seed=None, callbacks=(), keep_evaluations=False):
+        """Start a run whose solutions you evaluate yourself, and return its ``AskTell`` handle.
+
+        ``ask()`` gives the next batch of decoded solutions, ``tell(values)`` takes their
+        objective values, and ``result()`` gives the same ``Result`` that ``solve`` gives
+        when the values are the same. ``seed`` and ``callbacks`` are as in ``solve``. The
+        run uses a copy of this algorithm, so the algorithm can start other runs meanwhile.
+        The problem may have ``objective=None``. ``keep_evaluations`` is as in ``solve``.
+        """
+        from .ask_tell import AskTell
+
+        self._check(problem)
+        return AskTell(self, problem, seed, callbacks, keep_evaluations)
+
+    def _check(self, problem):
         if not isinstance(problem, Problem):
             raise TypeError("problem must be a ypea.Problem")
         self.validate()
+        m = problem.n_obj
+        if m > 1 and self.objectives == "single":
+            raise ValueError(f"{self.short_name} solves single objective problems, and this problem has {m} "
+                             "objectives. Use a multi-objective algorithm, or turn the problem into a single "
+                             "objective one with ypea.scalarize(problem, weights)")
+        if m == 1 and self.objectives == "multi":
+            raise ValueError(f"{self.short_name} solves multi-objective problems, and this problem has one objective")
+        if m > 1 and self.target is not None:
+            raise ValueError("target needs a single objective problem")
+        self.check_problem(problem)
+
+    def check_problem(self, problem):
+        """Check settings that depend on the problem before a run (override it, for
+        example to check that the operators fit the variables). Raise ValueError."""
+
+    def _run(self, problem, seed, callbacks, evaluator):
         self.problem = problem
         self.seed = seed
         # a StudioRng starts a fresh stream at position 0, so the same object repeats the run
         self.rng = StudioRng(seed.seed) if isinstance(seed, StudioRng) else np.random.default_rng(seed)
-        self.evaluator = Evaluator(problem, self.max_nfe, self.target, executor)
+        self.evaluator = evaluator
         self.iter = 0
         self.pop = None
         self._hist = []
@@ -162,32 +216,40 @@ class Algorithm:
         self._t0 = time.perf_counter()
         stop_reason = None
 
-        self.initialize()
-        self._record()
-        for cb in callbacks:
-            getattr(cb, "on_start", lambda alg: None)(self)
-
-        while True:
-            stop_reason = self._stop_reason()
-            if stop_reason:
-                break
-            self.iter += 1
-            nfe_before = self.nfe
-            self.iterate()
+        try:
+            self.initialize()
             self._record()
-            if self._stop_request:
-                stop_reason = self._stop_request
-                break
-            if self.nfe == nfe_before:
-                # settings that create no new solutions (for example GA with pop_size=1)
-                stop_reason = "no_evaluations"
-                break
-            if self.display:
-                print(f"Iteration {self.iter}: Best Obj. Value = {self.best.obj_value[0]:.6g}, "
-                      f"NFE = {self.nfe}")
-            if any([bool(cb(self)) for cb in callbacks]):
-                stop_reason = "callback"
-                break
+            for cb in callbacks:
+                getattr(cb, "on_start", lambda alg: None)(self)
+
+            while True:
+                stop_reason = self._stop_reason()
+                if stop_reason:
+                    break
+                self.iter += 1
+                nfe_before = self.nfe
+                self.iterate()
+                self._record()
+                if self._stop_request:
+                    stop_reason = self._stop_request
+                    break
+                if self.nfe == nfe_before:
+                    # settings that create no new solutions (for example GA with pop_size=1)
+                    stop_reason = "no_evaluations"
+                    break
+                if self.display and self.best is None:
+                    print(f"Iteration {self.iter}: Front size = {len(self.front)}, NFE = {self.nfe}")
+                elif self.display:
+                    print(f"Iteration {self.iter}: Best Obj. Value = {self.best.obj_value[0]:.6g}, "
+                          f"NFE = {self.nfe}")
+                if any([bool(cb(self)) for cb in callbacks]):
+                    stop_reason = "callback"
+                    break
+        except StopRun as e:  # ended from outside (ask and tell), in the middle of an iteration
+            if self.nfe == 0:
+                raise
+            self._record()
+            stop_reason = e.reason
 
         result = self._result(stop_reason)
         for cb in callbacks:
@@ -217,19 +279,46 @@ class Algorithm:
 
     def _record(self):
         b = self.best
+        if b is None:  # several objectives: no best value, the smallest violation and the front size
+            a = self.front
+            self._hist.append((self.iter, self.nfe, np.nan, float(a.V.min()), time.perf_counter() - self._t0, len(a)))
+            return
         self._hist.append((self.iter, self.nfe, b.F[0, 0], b.V[0], time.perf_counter() - self._t0))
 
     def _result(self, stop_reason):
-        it, nfe, f, v, t = (np.array(c) for c in zip(*self._hist, strict=True))
+        it, nfe, f, v, t, *size = (np.array(c) for c in zip(*self._hist, strict=True))
         ev = self.evaluator
-        history = History(it, nfe, f, v, t, np.array(ev.trace_nfe), np.array(ev.trace_f),
-                          np.array(ev.trace_v))
-        b = self.best
-        best = Individual(b.X[0].copy(), self.problem.decode_one(b.X[0]), float(b.F[0, 0]), float(b.V[0]))
+        m = self.problem.n_obj
+        trace_f = np.array(ev.trace_f) if m == 1 else np.array(ev.trace_f).reshape(-1, m)
+        history = History(it, nfe, f, v, t, np.array(ev.trace_nfe), trace_f, np.array(ev.trace_v))
+        best = best_feasible = front = None
+        decode = self.problem.decode_one
+        if m == 1:
+            b = self.best
+            best = Individual(b.X[0].copy(), decode(b.X[0]), float(b.F[0, 0]), float(b.V[0]))
+            history.trace_feasible_nfe = np.array(ev.feasible_trace_nfe, dtype=int)
+            history.trace_feasible_obj_value = np.array(ev.feasible_trace_f, dtype=float)
+            b = ev.best_feasible
+            if b is not None:
+                best_feasible = Individual(b.X[0].copy(), decode(b.X[0]), float(b.F[0, 0]), float(b.V[0]))
+        else:
+            history.archive_size = size[0]
+            history.trace_removed_nfe = np.array(ev.trace_removed, dtype=int)
+            a = ev.archive
+            # sorted by the objectives, the first one first, each as "smaller is better"
+            order = np.lexsort((self.problem.comparator.sign * a.F)[:, ::-1].T)
+            X = a.X[order].copy()
+            front = Front(X, a.F[order].copy(), a.V[order].copy(), [decode(x) for x in X])
+        evaluations = None
+        if ev.log is not None:
+            parts = ev.log or [(np.zeros((0, self.dim)), np.zeros((0, m)), np.zeros(0))]
+            X, F, V = (np.concatenate([p[k] for p in parts]) for k in range(3))
+            evaluations = Evaluations(np.arange(1, len(V) + 1), X, F.reshape(-1) if m == 1 else F, V)
         return Result(best=best, history=history, algorithm=self.short_name, params=self.params(),
                       problem=self.problem.name, seed=self.seed, nfe=self.nfe,
                       iterations=self.iter, run_time=float(t[-1]), stop_reason=stop_reason,
-                      optimum=self.problem.optimum, extra=self.result_extra())
+                      optimum=self.problem.optimum if m == 1 else None, extra=self.result_extra(),
+                      front=front, best_feasible=best_feasible, evaluations=evaluations)
 
     def result_extra(self) -> dict:
         """Algorithm specific information to keep in ``Result.extra`` (override it)."""
@@ -243,8 +332,25 @@ class Algorithm:
 
     @property
     def best(self) -> Population:
-        """Best solution found so far, as a Population of length 1."""
+        """Best solution found so far, as a Population of length 1 (None with several objectives)."""
         return self.evaluator.best
+
+    @property
+    def front(self) -> Population:
+        """The archive of non-dominated solutions found so far (several objectives, else None)."""
+        return self.evaluator.archive
+
+    def dominates(self, a: Population, b: Population) -> np.ndarray:
+        """Element wise: does a dominate b? Broadcasts a length 1 population."""
+        return self.problem.comparator.dominates(a.F, a.V, b.F, b.V)
+
+    def nondominated_sort(self, pop: Population) -> np.ndarray:
+        """Front of each solution, 0 for the non-dominated ones (Deb et al. 2002)."""
+        return self.problem.comparator.nondominated_sort(pop.F, pop.V)
+
+    def crowding_distance(self, pop: Population, ranks=None) -> np.ndarray:
+        """Crowding distance of each solution within its front (Deb et al. 2002)."""
+        return self.problem.comparator.crowding_distance(pop.F, ranks)
 
     @property
     def dim(self) -> int:

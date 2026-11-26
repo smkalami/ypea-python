@@ -1,6 +1,7 @@
 """Plots. Needs matplotlib (``pip install ypea[plot]``).
 
-``convergence`` draws single runs. ``band``, ``boxes`` and ``rank_bars`` draw the results
+``convergence`` draws single runs and ``front`` the objective vectors of multi-objective
+results. ``band``, ``boxes`` and ``rank_bars`` draw the results
 of an experiment (``ypea.experiment.Report`` calls them). Experiment figures are sized
 for one column of a paper (3.5 by 2.6 inches, 8 point text). Save them with
 ``ax.figure.savefig("name.pdf")`` (or .png, .svg).
@@ -30,6 +31,8 @@ def convergence(*results, x="nfe", log=None, ax=None, labels=None, error=False):
     ax = ax or plt.figure(figsize=(6, 4)).gca()
     all_y = []
     for k, r in enumerate(results):
+        if r.best is None:
+            raise ValueError("a multi-objective result has no best value to draw: plot its front instead")
         h = r.history
         if x == "nfe":
             xs, ys = np.r_[h.trace_nfe, r.nfe], np.r_[h.trace_obj_value, h.trace_obj_value[-1]]
@@ -134,4 +137,65 @@ def rank_bars(ranks, *, ax=None, ylabel="Average Friedman rank"):
     _finish(ax, "", ylabel, [], False, False)
     ax.grid(False)
     ax.grid(True, axis="y", alpha=0.3)
+    return ax
+
+
+def front(*fronts, true_front=None, labels=None, kind=None, ax=None, objectives=None):
+    """Objective vectors of one or more fronts (arrays of shape (n, m), a ``Front`` or a
+    ``Result``), drawn as given, so maximized objectives are not flipped.
+
+    Two objectives give a 2D scatter plot and three a 3D scatter plot. More objectives,
+    or ``kind="parallel"``, give parallel coordinates: one line per point across the
+    objectives. ``true_front`` (for example from ``ypea.benchmarks.multi.pareto_front``) is
+    drawn in gray behind the fronts. ``objectives`` names the axes (default f1, f2, ...).
+    A 3D plot needs ``ax`` to be a 3D axes (``projection="3d"``) or None. Returns the Axes.
+    """
+    plt = _plt()
+    fronts = [getattr(getattr(f, "front", f), "obj_values", f) for f in fronts]
+    sets = [np.atleast_2d(np.asarray(f, dtype=float)) for f in fronts]
+    if true_front is not None:
+        true_front = np.atleast_2d(np.asarray(true_front, dtype=float))
+    every = sets + ([true_front] if true_front is not None else [])
+    if not every:
+        raise ValueError("front needs at least one array")
+    m = every[0].shape[1]
+    if any(f.ndim != 2 or f.shape[1] != m for f in every):
+        raise ValueError("all fronts must have shape (n, m) with the same m")
+    if kind is None:
+        kind = "parallel" if m > 3 else "scatter"
+    if kind not in ("scatter", "parallel"):
+        raise ValueError("kind must be 'scatter' or 'parallel'")
+    if kind == "scatter" and m not in (2, 3):
+        raise ValueError("a scatter plot needs 2 or 3 objectives; use kind='parallel'")
+    names = list(objectives) if objectives is not None else [f"$f_{{{i + 1}}}$" for i in range(m)]
+    labels = labels or ([f"Front {k + 1}" for k in range(len(sets))] if len(sets) > 1 else [None])
+    if ax is None:
+        fig = plt.figure(figsize=(5, 4), layout="constrained")
+        ax = fig.add_subplot(projection="3d" if kind == "scatter" and m == 3 else None)
+    elif kind == "scatter" and m == 3 and getattr(ax, "name", "") != "3d":
+        raise ValueError("a 3D front needs an axes made with projection='3d'")
+    if kind == "parallel":
+        x = np.arange(1, m + 1)
+        if true_front is not None:
+            ax.plot(x, true_front.T, color="0.75", lw=0.5, zorder=1)
+        for k, f in enumerate(sets):
+            lines = ax.plot(x, f.T, color=f"C{k}", lw=0.8, alpha=0.6, zorder=2)
+            if labels[k] is not None and lines:
+                lines[0].set_label(labels[k])
+        ax.set_xticks(x, names)
+        ax.set_ylabel("Objective value")
+        ax.grid(True, axis="x", alpha=0.3)
+    else:
+        if true_front is not None:
+            ax.scatter(*true_front.T, s=2, color="0.7", label="True front", zorder=1)
+        for k, f in enumerate(sets):
+            ax.scatter(*f.T, s=12, color=f"C{k}", label=labels[k], zorder=2)
+        ax.set_xlabel(names[0])
+        ax.set_ylabel(names[1])
+        if m == 3:
+            ax.set_zlabel(names[2])
+        else:
+            ax.grid(True, alpha=0.3)
+    if any(lab is not None for lab in labels) or (true_front is not None and kind == "scatter"):
+        ax.legend()
     return ax

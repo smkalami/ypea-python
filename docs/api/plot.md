@@ -8,3 +8,4 @@
         - band
         - boxes
         - rank_bars
+        - front

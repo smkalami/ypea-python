@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .. import indicators
 from ..algorithm import Algorithm
 from ..random import StudioRng, derive_seed
 from ..result import _plain
@@ -55,7 +56,25 @@ class Experiment:
         Fractions of ``max_nfe`` at which the best objective value (and the error, when
         the problem has an ``optimum``) is recorded. None gives the CEC 2017 rule
         (0.01, 0.02, 0.03, 0.05, 0.1, 0.2, ..., 1.0). Runs without an evaluation budget
-        record no checkpoints, only their final values.
+        record no checkpoints, only their final values. With several objectives the
+        checkpoints hold IGD and hypervolume instead (see below).
+
+    **Several objectives.** Each run also stores the IGD and hypervolume of its final front,
+    and of its front at each checkpoint (rebuilt with ``History.front_at``). Only feasible
+    members with finite values count, each objective turned into minimization. A problem
+    gives its true front as ``info["pareto_front"]`` (``ypea.benchmarks.multi_problem`` does
+    this) or a reference point as ``info["ref_point"]``, both in its own objective values.
+
+    * IGD: ``ypea.indicators.igd`` of the front against ``info["pareto_front"]``, on the raw
+      objective values. Problems without a true front have no IGD.
+    * Hypervolume: each objective is normalized by the ideal point z and the nadir point n
+      of the true front, f' = (f - z) / (n - z), and the reference point is 1.1 in every
+      normalized objective, unless ``info["ref_point"]`` gives another one. The best value
+      is then a little below 1.1 ** m. Without a true front, the raw objective values and
+      ``info["ref_point"]`` are used. Exact for up to 3 objectives, a seeded Monte Carlo
+      estimate above (``ypea.indicators.hypervolume``).
+
+    A multi-objective problem with neither ``pareto_front`` nor ``ref_point`` raises an error.
 
     Each run file holds ``Result.to_dict()``, the checkpoint values, the problem sense and
     a run key. The key is a hash of the algorithm class and settings, the problem name,
@@ -90,6 +109,8 @@ class Experiment:
         self.seed, self.seeds, self.n_jobs, self.output = int(seed), seeds, n_jobs, output
         self.checkpoints = tuple(CEC_CHECKPOINTS if checkpoints is None else checkpoints)
         self._records = {}
+        self._indicators = {p.name: indicator_setup(p) for p in self.problems}
+        self._indicator_info = {k: v and _indicator_info(v) for k, v in self._indicators.items()}
         # copies with the budget of the experiment (this also validates the budget)
         self._algs = {k: self._with_budget(a) for k, a in self.algorithms.items()}
 
@@ -141,8 +162,11 @@ class Experiment:
                         "max_nfe": self.max_nfe, "max_iter": self.max_iter,
                         "seeds": self.seeds, "seed": seed_info, "run": i, "checkpoints": nfe,
                     }
+                    ind = self._indicators[p.name]
+                    if ind is not None:  # several objectives only, so single objective keys stay the same
+                        settings["indicators"] = self._indicator_info[p.name]
                     yield {"label": label, "algorithm": alg, "problem": p, "run": i,
-                           "seed": seed, "checkpoints": nfe, "settings": settings,
+                           "seed": seed, "checkpoints": nfe, "settings": settings, "indicators": ind,
                            "key": store.key_hash(settings),
                            "path": None if self.output is None else store.run_path(self.output, label, p.name, i)}
 
@@ -161,6 +185,7 @@ class Experiment:
             "checkpoints": list(self.checkpoints),
             "algorithms": {k: {"class": type(a).__name__, "params": a.params()} for k, a in self._algs.items()},
             "problems": [{"name": p.name, "sense": p.sense, "optimum": p.optimum, "code_size": p.code_size}
+                         | ({} if p.n_obj == 1 else {"indicators": self._indicator_info[p.name]})
                          for p in self.problems],
             "keys": keys,
         })
@@ -205,20 +230,68 @@ def _label(algorithms):
     return out
 
 
+def indicator_setup(problem):
+    """The minimized true front (or None), reference point, ideal point and scale used for
+    the indicators of a multi-objective problem, or None for one objective."""
+    if problem.n_obj == 1:
+        return None
+    m, sign = problem.n_obj, problem.comparator.sign
+    front, ref = problem.info.get("pareto_front"), problem.info.get("ref_point")
+    if front is None and ref is None:
+        raise ValueError(f"{problem.name} has several objectives: give its true front as "
+                         "info['pareto_front'] or a hypervolume reference point as info['ref_point']")
+    ideal, scale = np.zeros(m), np.ones(m)
+    if front is not None:
+        front = sign * np.asarray(front, dtype=float).reshape(-1, m)
+        ideal, nadir = front.min(axis=0), front.max(axis=0)
+        scale = np.where(nadir > ideal, nadir - ideal, 1.0)  # an objective with no range is not scaled
+    if ref is None:
+        ref = ideal + 1.1 * scale
+    else:
+        ref = sign * np.asarray(ref, dtype=float).reshape(m)
+    return {"front": front, "ref_point": ref, "ideal": ideal, "scale": scale, "sign": sign}
+
+
+def _indicator_info(ind):
+    front = ind["front"]
+    return _plain({"front_points": None if front is None else len(front),
+                   "front_hash": None if front is None else store.key_hash(_plain(front)),
+                   "ref_point": ind["ref_point"], "ideal": ind["ideal"], "scale": ind["scale"]})
+
+
+def front_indicators(ind, obj_values, violations) -> dict:
+    """IGD (None without a true front) and hypervolume of a set of objective values.
+    Only feasible rows with finite values count."""
+    F = ind["sign"] * np.asarray(obj_values, dtype=float).reshape(-1, len(ind["ideal"]))
+    F = F[(np.asarray(violations) <= 0) & np.all(np.isfinite(F), axis=1)]
+    return {"igd": None if ind["front"] is None else indicators.igd(F, ind["front"]),
+            "hypervolume": indicators.hypervolume((F - ind["ideal"]) / ind["scale"],
+                                                  (ind["ref_point"] - ind["ideal"]) / ind["scale"])}
+
+
 def run_task(task) -> dict:
     """Solve one run and save it (module level, so worker processes can call it)."""
     alg, problem = task["algorithm"], task["problem"]
     result = alg.solve(problem, seed=task["seed"])
-    cp = None
-    if task["checkpoints"] is not None:
+    cp, ind = None, task.get("indicators")
+    if task["checkpoints"] is not None and ind is None:
         values = result.history.at_nfe(task["checkpoints"])
         error = None if problem.optimum is None else np.abs(values - problem.optimum)
         cp = {"nfe": task["checkpoints"], "obj_value": values, "error": error}
-    rec = _plain({
+    elif task["checkpoints"] is not None:
+        h = result.history
+        at = [front_indicators(ind, h.trace_obj_value[mask], h.trace_violation[mask])
+              for mask in map(h.front_at, task["checkpoints"])]
+        cp = {"nfe": task["checkpoints"], "igd": [a["igd"] for a in at],
+              "hypervolume": [a["hypervolume"] for a in at]}
+    rec = {
         "key": task["key"], "settings": task["settings"], "label": task["label"],
         "problem": problem.name, "run": task["run"], "sense": problem.sense,
         "optimum": problem.optimum, "checkpoints": cp, "result": result.to_dict(),
-    })
+    }
+    if ind is not None:
+        rec["indicators"] = front_indicators(ind, result.front.obj_values, result.front.violations)
+    rec = _plain(rec)
     if task["path"] is None:
         return rec
     store.write_json(task["path"], rec)  # return nothing, so a large experiment does not fill the memory

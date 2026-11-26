@@ -142,6 +142,11 @@ def _space(params, pop=None, pop_reason=_AUTO_POP, **fixed):
     return Space({**p, **params}, {**f, **fixed})
 
 
+_MO_FIXED = {"crossover": "operator objects are chosen by the user, not sampled",
+             "mutation": "operator objects are chosen by the user, not sampled",
+             "max_archive": "the size of the front is chosen by the user"}
+
+
 SPACES = {
     alg.ABC: _space({
         "onlooker_count": integer(5, 100, log=True, valid=_POS),
@@ -213,7 +218,9 @@ SPACES = {
         "tournament_size": integer(2, 8, valid=(1, None)),
     }, integer(10, 200, valid=(1, None)),
         space="the choice of search space (codes or native operators) is a modeling decision",
-        operators="user supplied operator objects cannot be sampled"),
+        operators="user supplied operator objects cannot be sampled",
+        crossover="operator objects are chosen by the user, not sampled",
+        mutation="operator objects are chosen by the user, not sampled"),
     alg.HS: _space({
         "new_count": integer(1, 50, log=True, valid=(1, None)),
         "hmcr": real(0.7, 0.99, valid=_UNIT),
@@ -268,13 +275,19 @@ SPACES = {
         "initial_step": real(0.02, 0.5, log=True, valid=_UNIT),
     }, pop_reason="not used, the simplex always has d + 1 points",
         restart_tol="a numerical tolerance for restarts, not a search setting"),
+    alg.NSGAII: _space({}, integer(20, 200, valid=(1, None)), **_MO_FIXED),
+    alg.NSGAIII: _space({}, pop_reason="None gives the paper's choice from the number of reference points",
+                        divisions="set by the number of objectives (Table I of the paper)", **_MO_FIXED),
     alg.PSO: _space({
         "w": real(0.3, 1.0, valid=_POS),
         "wdamp": real(0.9, 1.0, valid=_UNIT),
         "c1": real(0.5, 2.5, valid=_POS),
         "c2": real(0.5, 2.5, valid=_POS),
-    }, integer(10, 100, valid=(1, None))),
-    alg.RandomSearch: _space({}, integer(10, 200, valid=(1, None))),
+    }, integer(10, 100, valid=(1, None)),
+        w_final="an optional schedule that replaces wdamp, off by default",
+        max_velocity="an optional limit, off by default"),
+    alg.RandomSearch: _space({}, integer(10, 200, valid=(1, None)),
+                             max_archive="the size of the front is chosen by the user"),
     alg.SA: _space({
         "max_sub_iter": integer(1, 20, valid=(1, None)),
         "initial_temp": real(1.0, 1e4, log=True, valid=_POS),
@@ -285,13 +298,35 @@ SPACES = {
         "mutation_step_size_damp": _DAMP,
     }, integer(2, 20, valid=(1, None)),
         space="the choice of search space (codes or native operators) is a modeling decision",
-        operators="user supplied operator objects cannot be sampled"),
+        operators="user supplied operator objects cannot be sampled",
+        mutation="operator objects are chosen by the user, not sampled"),
     alg.SHADE: _space({
         "memory_size": integer(2, 100, log=True, valid=(1, None)),
         "archive_rate": real(0.0, 2.0, valid=_POS),
         "p_best_max": real(0.1, 0.4, valid=_UNIT),
     }, integer(20, 200, valid=(4, None))),
     alg.TLBO: _space({}, integer(10, 100, valid=(2, None))),
+    alg.MOEAD: _space({
+        "neighbors": integer(5, 40, valid=(2, None)),
+        "decomposition": categorical("tchebycheff", "pbi"),
+        "theta": real(1.0, 10.0, valid=_POS),
+    }, integer(20, 200, valid=(1, None)),
+        crossover="operator objects are chosen by the user, not sampled",
+        mutation="operator objects are chosen by the user, not sampled",
+        batch="evaluating one child at a time or a whole generation is a choice of how to run the objective",
+        max_archive="the size of the front is chosen by the user"),
+    alg.MOPSO: _space({
+        "w": real(0.1, 0.9, valid=_POS),
+        "repository_size": integer(50, 200, valid=(1, None)),
+        "divisions": integer(5, 50, valid=(1, None)),
+        "mutation_rate": real(0.1, 1.0, valid=_POS),
+    }, integer(20, 200, valid=(1, None)),
+        max_archive="the size of the front is chosen by the user"),
+    alg.SPEA2: _space({}, integer(20, 200, valid=(1, None)),
+        archive_size="defaults to the population size, as in the paper",
+        crossover="operator objects are chosen by the user, not sampled",
+        mutation="operator objects are chosen by the user, not sampled",
+        max_archive="the size of the front is chosen by the user"),
 }
 
 

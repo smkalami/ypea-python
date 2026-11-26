@@ -37,6 +37,35 @@ For a partition, the ordering is rebuilt from the groups as the variable's `enco
 
 With GA on a combinatorial problem, also set `mutation_step_size_damp=1`, so the step does not shrink until the search stops moving. See [GA](../algorithms/ga.md#long-runs-and-combinatorial-problems).
 
+## Operators as settings
+
+GA takes `crossover=` and `mutation=`, and SA takes `mutation=`, to replace the default operators with any compatible operator of `ypea.operators`. None (the default) keeps the defaults above, with the same results as before.
+
+| Operator | Space | Use |
+|---|---|---|
+| `SBX(eta=20, prob=0.9, prob_var=0.5)` | code | simulated binary crossover, bounded to [0, 1] (Deb and Agrawal 1995) |
+| `PolynomialMutation(eta=20, prob=None)` | code | polynomial mutation, bounded to [0, 1], each component with probability `prob` (default 1/d) |
+| `NativeCrossover(fn, types)` | native | `fn(x1, x2, rng)` on the decoded values of the variables of the listed types |
+| `NativeMutation(fn, types)` | native | `fn(x, rng)` on the decoded values of the variables of the listed types |
+
+```python
+from ypea.operators import SBX, PolynomialMutation
+
+sphere = ypea.benchmarks.problem("sphere", 10)
+ga = ypea.GA(max_nfe=20_000, crossover=SBX(eta=15), mutation=PolynomialMutation(eta=20))
+print(f"{ga.solve(sphere, seed=1).best.obj_value:.3g}")
+```
+
+```text
+0.0606
+```
+
+Each operator declares its space. A code operator works on whole code vectors and needs `space="encoded"` (the default). A native operator needs `space="native"`, applies to the variables of the types it lists, and leaves the other variables with their defaults. An entry of `operators` for a variable still comes first. The run checks this before it starts and raises a clear error, for example for `SBX` with `space="native"`, or a native operator whose types match no variable of the problem.
+
+`eta` is the distribution index: larger values keep children and mutants closer to their parents. The defaults are the NSGA-II settings of Deb et al. (2002). Like every operator in ypea, these draw their random numbers only through the methods that `ypea.StudioRng` offers, in fixed shapes.
+
+To write your own code operator, subclass `ypea.operators.Crossover` or `Mutation` and implement `__call__(x1, x2, rng)` or `__call__(x, rng)` on code batches of shape (n, d).
+
 ## Your own operators
 
 `operators` maps a variable name to an object with `crossover(x1, x2, rng)` and `mutate(x, rng)` methods, or to a tuple `(crossover, mutate)`. The functions get decoded batches of shape (n, *shape): a crossover returns two child batches and a mutation one batch. A missing method or a None entry keeps the default.

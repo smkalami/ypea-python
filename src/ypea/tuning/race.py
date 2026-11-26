@@ -104,6 +104,10 @@ def tune(algorithm_class, problems, budget, space=None, max_nfe_per_run=10_000, 
     """
     fixed = dict(fixed or {})
     problems = list(problems)
+    if any(p.n_obj > 1 for p in problems):
+        raise ValueError("tune races single objective problems only: it compares one final value per run. "
+                         "Turn a problem into one objective with ypea.scalarize, or compare settings with "
+                         "ypea.tuning.sweep, whose report gives IGD and hypervolume")
     names = [p.name for p in problems]
     if not names or len(set(names)) != len(names):
         raise ValueError(f"problem names must be unique, got {names}")

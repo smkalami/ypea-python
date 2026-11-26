@@ -13,16 +13,18 @@ Define an optimization problem once, then solve it with any of the algorithms::
     print(result.best.solution.x, result.best.obj_value)
 """
 
-from . import benchmarks, callbacks, experiment, operators, plot, problems, random, tuning
+from . import benchmarks, callbacks, experiment, indicators, operators, plot, problems, random, tuning
 from .algorithm import Algorithm
 from .algorithms import *  # noqa: F403
 from .algorithms import __all__ as _algorithms
+from .ask_tell import AskTell
 from .comparison import Comparator
 from .experiment import Experiment, Report
 from .population import Individual, Population
 from .problem import Problem, Solution
 from .random import StudioRng, derive_seed
-from .result import History, Result
+from .result import Evaluations, Front, History, Result
+from .scalarize import scalarize
 from .tuning import tune
 from .variables import (
     Binary,
@@ -37,12 +39,13 @@ from .variables import (
     Variable,
 )
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 __all__ = [
-    "Algorithm", "Binary", "BinaryPartition", "BinarySelection", "Comparator", "Experiment", "FixedSum",
+    "Algorithm", "AskTell", "Binary", "BinaryPartition", "BinarySelection", "Comparator", "Experiment", "FixedSum",
     "History", "Individual", "Integer", "Partition", "Permutation", "Population", "Problem", "Real",
     "Report", "Result", "Selection", "Solution", "StudioRng", "Variable", "benchmarks", "callbacks",
-    "derive_seed", "experiment", "operators", "plot", "problems", "random", "tune", "tuning",
+    "derive_seed", "experiment", "indicators", "operators", "plot", "problems", "random", "tune", "tuning",
+    "Evaluations", "Front", "scalarize",
     *_algorithms,
 ]

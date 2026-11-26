@@ -123,15 +123,43 @@ The figures are sized for one column of a paper (3.5 by 2.6 inches, 8 point text
 `Experiment.sweep` runs one algorithm with several settings, every combination of the given values:
 
 ```python
-sweep = Experiment.sweep(ypea.DE, {"crossover_prob": [0.1, 0.9], "beta_max": [0.5, 0.9]},
+sweep = Experiment.sweep(ypea.DE, {"crossover_prob": [0.1, 0.9], "beta_max": [0.7, 0.9]},
                          problems[:2], runs=3, max_nfe=2_000)
 print(list(sweep.algorithms))
 ```
 
 ```text
-['DE(crossover_prob=0.1, beta_max=0.5)', 'DE(crossover_prob=0.1, beta_max=0.9)', 'DE(crossover_prob=0.9, beta_max=0.5)', 'DE(crossover_prob=0.9, beta_max=0.9)']
+['DE(crossover_prob=0.1, beta_max=0.7)', 'DE(crossover_prob=0.1, beta_max=0.9)', 'DE(crossover_prob=0.9, beta_max=0.7)', 'DE(crossover_prob=0.9, beta_max=0.9)']
 ```
 
 For automatic tuning with racing, see [Tuning](../tuning.md).
+
+## Several objectives
+
+An experiment may also compare multi-objective algorithms. Each run then stores its final front (in the result), and the IGD and hypervolume of the front at the end and at every checkpoint. The ready made benchmarks of `ypea.benchmarks.multi_problem` carry their true fronts, so they work as they are:
+
+```python
+from ypea.benchmarks import multi_problem
+
+problems = [multi_problem("zdt1"), multi_problem("dtlz2", m=3), multi_problem("wfg4", m=3)]
+algorithms = {"NSGA-II": ypea.NSGAII(), "MOEA/D": ypea.MOEAD(), "SPEA2": ypea.SPEA2()}
+exp = Experiment(algorithms, problems, runs=5, max_nfe=5_000, seed=2026, output="results/multi")
+report = exp.run().report()
+
+report.table(metric="igd")           # lower is better
+report.table(metric="hypervolume")   # higher is better
+report.plot_convergence("zdt1_m2_d30", metric="igd")
+```
+
+The tables have the same statistics, Wilcoxon marks, `+/=/−` row and Friedman ranks as with one objective. The default `metric="error"` means IGD on these problems. `report.values(label, problem, "igd")` gives the final values, and `report.curves` the values at the checkpoints.
+
+The indicators are computed for the feasible members of the front only, each objective turned into minimization:
+
+- **IGD** is `ypea.indicators.igd` against the sampled true front `problem.info["pareto_front"]` (1000 points by default, see `front_points`), on the raw objective values, as most papers report it. Objectives with a larger range weigh more: the WFG objectives have the scales 2, 4, 6 and so on, so the later objectives dominate their IGD.
+- **Hypervolume** is computed after each objective is normalized by the ideal point z and the nadir point n of the true front, f' = (f - z) / (n - z), with the reference point 1.1 in every normalized objective. So the values of different problems have the same scale, and the best possible value is below 1.1^m. It is exact for up to three objectives and a seeded Monte Carlo estimate for more.
+
+For your own problem, give the true front as `info={"pareto_front": F}` (an array of shape (n, m) in the problem's own objective values), or, if it is not known, a reference point as `info={"ref_point": r}`. With only a reference point, the report has the hypervolume of the raw objective values and no IGD. A reference point given together with a front replaces the 1.1 point (it is normalized like the values). A problem with neither raises an error when the experiment is made.
+
+Runs without `max_nfe` have no checkpoints, so they have final values but no convergence plots. `ypea.tune` (racing) needs one value per run and so accepts only single objective problems, but `ypea.tuning.sweep` works with several objectives and returns this report.
 
 `examples/experiment_cec2017.py` is a complete script with all of these steps.

@@ -7,6 +7,8 @@
 ```python
 import json
 
+import numpy as np
+
 import ypea
 
 problem = ypea.benchmarks.problem("rastrigin", 10)
@@ -24,7 +26,10 @@ L-SHADE on rastrigin_d10
 
 | Field | Meaning |
 |---|---|
-| `best` | the best solution (an `Individual`, see below) |
+| `best` | the best solution (an `Individual`, see below), by the problem's comparison rules |
+| `best_feasible` | the best feasible solution by objective value alone, or None if no feasible solution was found |
+| `front` | with several objectives, the non-dominated solutions (see [Multiple objectives](multi-objective.md)). `best` and `best_feasible` are then None |
+| `evaluations` | every evaluated solution, when the run was started with `keep_evaluations=True` (see below) |
 | `history` | the progress of the run (see below) |
 | `algorithm`, `params` | the short name of the algorithm and its settings |
 | `problem` | the name of the problem |
@@ -50,6 +55,34 @@ print(best.position.shape)       # its codes in [0, 1]
 (10,)
 ```
 
+With the default feasibility rules, `best_feasible` is the same solution as `best` once any feasible solution exists. With `constraints="penalty"` the best by penalized value may be infeasible, and `best_feasible` then gives the best solution that satisfies every constraint. Both are tracked exactly after every evaluation, and `summary()` shows the best feasible value when the best solution is infeasible.
+
+## All evaluations
+
+`solve(problem, keep_evaluations=True)` (and `ask_tell` with the same argument) keeps every evaluated solution in `result.evaluations`. It is off by default, because it needs memory for every evaluation. Rows past the `max_nfe` budget are not evaluated, so they are not kept.
+
+```python
+result = ypea.LSHADE(max_nfe=20_000).solve(problem, seed=1, keep_evaluations=True)
+ev = result.evaluations
+print(len(ev), ev.nfe[:3], ev.obj_values.shape, ev.positions.shape)
+good = ev[ev.feasible & (ev.obj_values < 1)]       # filter like an array
+first = good[np.argsort(good.nfe)][:1]              # sort by any field
+print(first.nfe, first.obj_values.round(3))
+```
+
+```text
+20000 [1 2 3] (20000,) (20000, 10)
+[18476] [0.947]
+```
+
+| Field | Shape | Meaning |
+|---|---|---|
+| `nfe` | (n,) | the evaluation number of each row, 1, 2, ... |
+| `positions` | (n, code_size) | the codes. Decode them with `problem.decode(ev.positions)` |
+| `obj_values` | (n,) or (n, m) | the objective values (non-finite values are stored as the worst value) |
+| `violations` | (n,) | the total constraint violations |
+| `feasible` | (n,) | True where the violation is 0 |
+
 ## History
 
 `result.history` has one entry per iteration (iteration 0 is the initialization) and one entry per improvement of the best solution:
@@ -58,6 +91,7 @@ print(best.position.shape)       # its codes in [0, 1]
 |---|---|
 | `iteration`, `nfe`, `best_obj_value`, `best_violation`, `time` | iteration |
 | `trace_nfe`, `trace_obj_value`, `trace_violation` | improvement, with the exact evaluation count that found it |
+| `trace_feasible_nfe`, `trace_feasible_obj_value` | improvement of the best feasible solution |
 
 `history.at_nfe(points)` gives the best value found within each number of evaluations, which is how experiments record values at fixed budgets:
 

@@ -14,6 +14,7 @@ The core classes. All of them are available from the top level package, for exam
     options:
       members:
         - solve
+        - ask_tell
         - params
         - validate
         - initialize
@@ -22,6 +23,18 @@ The core classes. All of them are available from the top level package, for exam
         - progress
         - planned_iterations
         - result_extra
+        - check_problem
+        - dominates
+        - nondominated_sort
+        - crowding_distance
+
+::: ypea.ask_tell.AskTell
+    options:
+      members:
+        - ask
+        - tell
+        - stop
+        - result
 
 ::: ypea.result.Result
     options:
@@ -31,16 +44,28 @@ The core classes. All of them are available from the top level package, for exam
     options:
       members: true
 
+::: ypea.result.Front
+    options:
+      members: true
+
+::: ypea.result.Evaluations
+    options:
+      members: true
+
+::: ypea.scalarize.scalarize
+
 ::: ypea.population.Individual
 
 ::: ypea.population.Population
     options:
       members: true
 
-::: ypea.comparison
+::: ypea.comparison.Comparator
     options:
       members:
-        - Comparator
+        - dominates
+        - nondominated_sort
+        - crowding_distance
 
 ::: ypea.callbacks
     options:

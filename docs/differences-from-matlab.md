@@ -43,10 +43,16 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 - `target-to-best` is also available under its usual name, `current-to-best`.
 - A strategy is given as `DE("DE/best/2/bin")` or with the separate settings.
 - Trial vectors are built from the population at the start of the iteration (synchronous).
+- Strategy names count the difference vectors only: `current-to-best/1` adds the best minus current difference and one random difference. Some textbooks (for example Engelbrecht 2007) count the best minus current difference too, and call the same strategy `current-to-best/2`.
+- In `rand-to-best`, the weight of the best minus base difference is the same jittered scale factor as the random differences.
+- Components of a trial vector outside [0, 1] are clipped to the bound (as in YPEA for MATLAB). Some textbooks reset them at random instead.
+- A trial vector replaces its target when it is at least as good (ties accepted), as in Storn and Price.
+- The scale factor defaults to the fixed F = 0.5 of Storn and Price. MATLAB drew F per component from [0.2, 0.9], which `beta_min=0.2, beta_max=0.9` still gives (see Default values below).
 
 ### GA
 
 - Roulette wheel selection is rank based (see F2). `selection="tournament"` is new.
+- Blend crossover defaults to BLX-0.5 (`crossover_inflation=0.5`, Eshelman and Schaffer 1993). MATLAB used 0.1 (see Default values below).
 
 ### SA
 
@@ -97,6 +103,7 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 ### BBO
 
 - The default `alpha` is 1, which copies the immigrating feature as in Simon (2008). `alpha=0.9` gives the MATLAB blend.
+- `alpha` is the weight of the immigrating feature: x + alpha (x_j - x). Simon's book (2013, eq. 14.19) writes the blend with the weight on the current feature, a = 1 - alpha. So alpha = 1 here is the book's a = 0, plain copying.
 - The migration source is never the habitat itself. Populations of one or two habitats no longer divide by zero.
 - `keep_rate` and `mutation_prob` must be in [0, 1].
 
@@ -106,7 +113,7 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 - Survivors are selected from parents and offspring (the best `pop_size` survive), following the select step of the cultural algorithm. MATLAB had no selection, and the default influence type did not converge (about 60 to 70 on the 10D sphere). `selection=False` gives the MATLAB scheme.
 - The belief space (normative and situational knowledge) is updated with the problem's comparison rules, so maximization and constraints work.
 - At least two solutions are accepted. With one, the normative intervals have zero width and the search stalls.
-- The four influence types keep the YPEA for MATLAB definitions.
+- The four influence types keep the YPEA for MATLAB definitions. They come from Reynolds and Chung (1997), "Knowledge-based self-adaptation in evolutionary programming using cultural algorithms", IEEE ICEC, as given in Engelbrecht (2007), Section 14.3.4, equations 14.12 to 14.16. Two differences from that source: every step is multiplied by `alpha` (the source has no such factor, so `alpha=1` reproduces it for types 1, 3 and 4), and type 2 uses a fixed step of 0.1 alpha instead of the self adapted strategy parameter of evolutionary programming.
 
 ### FA
 
@@ -143,6 +150,8 @@ Defaults follow the value recommended in each algorithm's paper, and a default c
 | ABC | `onlooker_count` | 100 | `pop_size` (SN) | Karaboga (2005), Table 2, p. 8 | paper value |
 | ABC | `trial_limit` | round(0.6 * d * pop_size) | onlookers * d | Karaboga (2005), Table 2, p. 8 | paper value |
 | BBO | `alpha` | 0.9 | 1 (copy) | Simon (2008) | copy migration of the paper |
+| DE | `beta_min`, `beta_max` | 0.2, 0.9 (F drawn per component) | 0.5, 0.5 (fixed F = 0.5) | Storn and Price (1997), Simon (2013), Engelbrecht (2007) | never worse on 119 problems (classic d = 10 and 30, CEC 2017 d = 10 and 30, combinatorial): 38 wins, 81 ties, 0 losses, Friedman rank 1.25 against 1.75 |
+| GA | `crossover_inflation` | 0.1 | 0.5 (BLX-0.5) | Eshelman and Schaffer (1993), Simon (2013), Engelbrecht (2007) | 41 wins, 70 ties, 8 losses on the same 119 problems, Friedman rank 1.42 against 1.58. Slightly worse mean rank on CEC 2017 at d = 30 (1.59) |
 | CMA-ES | `pop_size` | 100 | 4 + floor(3 ln n) | Hansen (2016), Table 1, p. 31 | paper value |
 | IWO | step size schedule | `step_size_damp = 0.001` per iteration | `final_step_size = 0.001` with `modulation_index = 2` | schedule form of Mehrabian and Lucas (2006) | the MATLAB schedule stopped the search (see IWO above) |
 | CA | `selection` | none | `True` | Reynolds (1994) | about 60 to 70 on the 10D sphere without it (see CA above) |

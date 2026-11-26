@@ -148,6 +148,7 @@ The `examples` folder of the repository has complete scripts, most of them Pytho
 | `knapsack.py` | a binary knapsack with a constraint, feasibility rules and a penalty |
 | `tsp_sa.py` | a TSP solved with Simulated Annealing, with a plot of the tour |
 | `tsp_ga_native.py` | GA and SA with native permutation operators, and custom operators |
+| `ask_tell.py` | evaluating the solutions outside the toolbox with ask and tell |
 | `variables.py` | every variable type with decoded samples |
 | `experiment_cec2017.py` | three algorithms on CEC 2017 with tables and an HTML report |
 
