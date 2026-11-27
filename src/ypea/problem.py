@@ -54,6 +54,13 @@ class Problem:
         to the total violation. ``equality_scale`` is the typical size of each equality
         (one number for all, or one per equality). The defaults are 1e-4 (the CEC rule),
         1e-6 and 1.
+    constraint_scaling : bool or list of float
+        How the violations of the constraints are added up. With True (the default), each
+        constraint is divided by its largest violation among the first solutions of a run
+        (at least 20, see the user guide), so constraints of different sizes count alike, as
+        Deb (2000) recommends. The scales then stay fixed for the run and are kept in
+        ``Result.constraint_scale``. False adds the raw violations. A list gives fixed
+        scales, one per constraint (the inequalities, then the equalities).
     name : str, optional
     optimum : float, optional
         Known optimal objective value. Results then report the error ``|f - optimum|``.
@@ -64,7 +71,7 @@ class Problem:
 
     def __init__(self, vars, objective, sense="min", *, n_obj=None, vectorized=False,
                  constraints="feasibility", penalty=1e6, equality_atol=1e-4, equality_rtol=1e-6,
-                 equality_scale=1.0, name=None, optimum=None, info=None):
+                 equality_scale=1.0, constraint_scaling=True, name=None, optimum=None, info=None):
         self.vars = [vars] if isinstance(vars, Variable) else list(vars)
         if not self.vars or not all(isinstance(v, Variable) for v in self.vars):
             raise TypeError("vars must be a Variable or a non empty list of Variables")
@@ -101,6 +108,13 @@ class Problem:
         self.equality_scale = equality_scale
         #: (atol, rtol, scale) of the equality constraints
         self.equality_tolerance = (self.equality_atol, self.equality_rtol, scale)
+        if constraint_scaling is not True and constraint_scaling is not False:
+            cs = np.asarray(constraint_scaling, dtype=float)
+            if cs.ndim != 1 or not cs.size or not (np.all(np.isfinite(cs)) and np.all(cs > 0)):
+                raise ValueError("constraint_scaling must be True, False or a list of positive numbers, "
+                                 "one per constraint (the inequalities, then the equalities)")
+            constraint_scaling = cs
+        self.constraint_scaling = constraint_scaling
         self.name = name or getattr(objective, "__name__", "problem")
         self.optimum = optimum
         self.info = dict(info or {})
@@ -156,12 +170,17 @@ class Problem:
 
 
 def equality_violation(h, eq=None, n=None):
+    return _equality_parts(h, eq, n).sum(axis=-1) if n is not None else float(_equality_parts(h, eq).sum())
+
+
+def _equality_parts(h, eq=None, n=None):
     """Total violation of equality constraints ``h(x) = 0``.
 
     Each equality is satisfied when ``|h| <= atol + rtol * scale``, and otherwise adds
     ``|h| - (atol + rtol * scale)``. ``eq`` is ``(atol, rtol, scale)``, by default
     ``(1e-4, 1e-6, 1)``. With ``n`` (a batch), ``h`` has shape (n,) or (n, k) and the
     result has shape (n,). Otherwise ``h`` is one value or a list and the result a number.
+    ``_equality_parts`` gives the violation of each equality, before the sum.
     """
     atol, rtol, scale = eq or (1e-4, 1e-6, 1.0)
     h = np.asarray(h, dtype=float)
@@ -176,17 +195,28 @@ def equality_violation(h, eq=None, n=None):
     except ValueError:
         raise ValueError(f"equality_scale has {np.size(scale)} entries, but the objective returned "
                          f"{h.shape[-1]} equality constraints") from None
-    v = np.maximum(np.abs(h) - tol, 0).sum(axis=-1)
-    return float(v) if n is None else v
+    return np.maximum(np.abs(h) - tol, 0)
 
 
 def _inequality(g):
     return 0.0 if g is None else float(np.maximum(np.asarray(g, dtype=float), 0).sum())
 
 
-def parse_result(out, n_obj=1, eq=None):
+def parse_result(out, n_obj=1, eq=None, parts=False):
     """Turn an objective return value, ``f``, ``(f, g)`` or ``(f, g, h)``, into (f, violation).
-    f is an array with several objectives. ``eq`` holds the equality tolerances."""
+    f is an array with several objectives. ``eq`` holds the equality tolerances. With
+    ``parts``, the violation is an array with one entry per constraint (the inequalities,
+    then the equalities), before the sum."""
+    if parts:
+        if isinstance(out, tuple) and len(out) == 3:
+            f, g, h = out
+        elif isinstance(out, tuple):
+            (f, g), h = _split(out), None
+        else:
+            f, g, h = out, None, None
+        f = _scalar(f) if n_obj == 1 else _vector(f, n_obj)
+        gp = np.zeros(0) if g is None else np.maximum(np.asarray(g, dtype=float).ravel(), 0)
+        return f, (gp if h is None else np.concatenate([gp, _equality_parts(h, eq)]))
     if isinstance(out, tuple) and len(out) == 3:
         f, g, h = out
         v = _inequality(g) + equality_violation(h, eq)
@@ -237,6 +267,13 @@ def _batch_objectives(f, n, n_obj):
     return f
 
 
+def _batch_inequality_parts(g, n):
+    g = np.asarray(g, dtype=float)
+    if g.ndim == 0 or g.shape[0] != n:
+        raise ValueError(f"vectorized constraint values must have shape ({n},) or ({n}, m), got {g.shape}")
+    return np.maximum(g.reshape(n, -1), 0)
+
+
 def _batch_inequality(g, n):
     if g is None:
         return np.zeros(n)
@@ -246,9 +283,19 @@ def _batch_inequality(g, n):
     return np.maximum(g.reshape(n, -1), 0).sum(axis=1)
 
 
-def parse_batch(out, n, n_obj=1, eq=None):
+def parse_batch(out, n, n_obj=1, eq=None, parts=False):
     """Turn a vectorized objective return value, ``F``, ``(F, G)`` or ``(F, G, H)``, into
-    arrays F (n,) (or (n, n_obj)) and V (n,)."""
+    arrays F (n,) (or (n, n_obj)) and V (n,). With ``parts``, V has shape (n, c), one column
+    per constraint (the inequalities, then the equalities), before the sum."""
+    if parts:
+        if isinstance(out, tuple):
+            f, g, h = out if len(out) == 3 else (*_split(out), None)
+        else:
+            f, g, h = out, None, None
+        cols = [] if g is None else [_batch_inequality_parts(g, n)]
+        if h is not None:
+            cols.append(_equality_parts(h, eq, n))
+        return _batch_objectives(f, n, n_obj), (np.concatenate(cols, axis=1) if cols else np.zeros((n, 0)))
     if isinstance(out, tuple) and len(out) == 3:
         f, g, h = out
         return _batch_objectives(f, n, n_obj), _batch_inequality(g, n) + equality_violation(h, eq, n)

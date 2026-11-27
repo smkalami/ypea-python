@@ -55,7 +55,7 @@ class CA(Algorithm):
     Differences: the four influence types follow YPEA for MATLAB (they match the CAEP
     variants of Chung and Reynolds). YPEA for MATLAB replaced every individual by its
     moved copy, without selection. Here the population is selected from parents and
-    offspring, as in the "select" step of Reynolds' algorithm and in CAEP. The survivors
+    offspring, as in the evolutionary programming base of CAEP. The survivors
     are chosen by truncation, not by the tournament of evolutionary programming.
 
     Reference: R. G. Reynolds, "An introduction to cultural algorithms", Proceedings of
@@ -124,7 +124,7 @@ class CA(Algorithm):
             dx = np.where(X < s, np.abs(dx), np.where(X > s, -np.abs(dx), dx))
         elif t == 4:
             dx = np.where(X < self.xmin, np.abs(dx), np.where(X > self.xmax, -np.abs(dx), self.beta * dx))
-        # selection from parents and offspring (the "select" step of Reynolds' loop)
+        # selection from parents and offspring (as in CAEP)
         offspring = self.evaluate(X + dx)
         merged = self.pop.concat(self.pop, offspring) if self.selection else offspring
         self.pop = self.sort(merged)[: self.pop_size]

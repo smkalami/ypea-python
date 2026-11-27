@@ -57,8 +57,12 @@ class BA(Algorithm):
     Derived counts are rounded half away from zero, as in MATLAB. Bee counts per site are
     at least 1, so small populations still search their sites.
 
-    Differences from the paper: the 2006 paper keeps the neighborhood size fixed. The
-    damping of r comes from YPEA for MATLAB (``dance_radius_damp=1`` gives a fixed size).
+    Differences from the paper: the 2006 paper starts the neighborhood at its initial
+    size and shrinks it gradually, but gives no rule. The geometric damping of r comes
+    from YPEA for MATLAB (``dance_radius_damp=1`` gives a fixed size).
+    The paper uses fewer selected sites (m / n about 0.1) and a smaller patch (about 0.005 to
+    0.05 of the range). On 119 benchmark problems these did better at d = 10 but worse at
+    d = 30, and no better overall, so the defaults keep the MATLAB values.
     The probabilistic mode and its thresholds come from YPEA for MATLAB, with a rank
     based score in place of 1 / f.
 

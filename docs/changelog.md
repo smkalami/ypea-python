@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **MOPSO inertia (seeded MOPSO results change once):** the default `w` is now 0.7 (before 0.4, the paper's value). On 21 ZDT, DTLZ and WFG problems (15 runs, 25 000 evaluations), 0.7 had 13 wins, 2 ties and 6 losses in IGD and 12 wins, 4 ties and 5 losses in hypervolume. `MOPSO(w=0.4)` gives the paper's setting.
+- **Constraint scaling (seeded results on constrained problems change once):** each constraint is divided by its largest violation among the first solutions of a run (at least 20, so algorithms that start with fewer evaluate random solutions to make up 20), as Deb (2000) recommends, so constraints of different sizes count alike. The scales stay fixed for the run and are in `Result.constraint_scale`. The penalty uses the scaled violation too. `Problem(constraint_scaling=False)` gives the raw sum as before, and a list gives fixed scales. See [Scaling of the constraints](guide/objectives.md#comparing-solutions-with-constraints).
+- **ICA defaults from the paper (seeded ICA results change once):** `assimilation_coeff=2`, `zeta=0.1`, `empire_count=10` (before 1.5, 0.2 and 5), and the competition rule of Atashpaz-Gargari and Lucas (2007), the largest P - U(0, 1). On 119 benchmark problems (15 runs each), they had 30 wins, 83 ties and 6 losses against the old values. `competition="roulette"` gives the old draw. See [Differences from YPEA for MATLAB](differences-from-matlab.md#default-values).
+- **HS and BA:** the paper values tested (one new harmony per iteration, and the Bees Algorithm's fewer sites and smaller patch) did not do better, so the defaults stay. The evidence is in [Differences from YPEA for MATLAB](differences-from-matlab.md#default-values).
+- **Docs:** claims about the papers of BA, HS, ICA, TLBO, CA and FA corrected after checking them against the papers.
+
 ## 0.6.0 (2026-11-26)
 
 - **New defaults for DE and GA (seeded results change once):** DE uses the fixed scale factor F = 0.5 of Storn and Price (`beta_min=0.5, beta_max=0.5`, before a new F per component from [0.2, 0.9]), and GA uses BLX-0.5 (`crossover_inflation=0.5`, before 0.1). On 119 benchmark problems (15 runs each), F = 0.5 had 38 wins, 81 ties and no loss, and BLX-0.5 had 41 wins, 70 ties and 8 losses. The old values stay available as settings. See [Differences from YPEA for MATLAB](differences-from-matlab.md#default-values).

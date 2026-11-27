@@ -209,6 +209,7 @@ class Algorithm:
         # a StudioRng starts a fresh stream at position 0, so the same object repeats the run
         self.rng = StudioRng(seed.seed) if isinstance(seed, StudioRng) else np.random.default_rng(seed)
         self.evaluator = evaluator
+        evaluator.rng = self.rng
         self.iter = 0
         self.pop = None
         self._hist = []
@@ -318,7 +319,8 @@ class Algorithm:
                       problem=self.problem.name, seed=self.seed, nfe=self.nfe,
                       iterations=self.iter, run_time=float(t[-1]), stop_reason=stop_reason,
                       optimum=self.problem.optimum if m == 1 else None, extra=self.result_extra(),
-                      front=front, best_feasible=best_feasible, evaluations=evaluations)
+                      front=front, best_feasible=best_feasible, evaluations=evaluations,
+                      constraint_scale=None if ev.constraint_scale is None else np.array(ev.constraint_scale))
 
     def result_extra(self) -> dict:
         """Algorithm specific information to keep in ``Result.extra`` (override it)."""

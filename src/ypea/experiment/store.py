@@ -81,5 +81,7 @@ def load(output):
             for i, key in enumerate(keys):
                 rec = read_run(run_path(output, label, problem, i), key)
                 if rec is not None:
+                    # the per iteration history can be many megabytes per run, and reports use only the trace
+                    rec["result"].pop("history", None)
                     records.append(rec)
     return meta, records

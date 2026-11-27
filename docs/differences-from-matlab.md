@@ -110,28 +110,30 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 ### CA
 
 - Influence types 2, 3 and 4 change only component j with the step for component j (A4). MATLAB added the step to the whole position vector inside the loop over j.
-- Survivors are selected from parents and offspring (the best `pop_size` survive), following the select step of the cultural algorithm. MATLAB had no selection, and the default influence type did not converge (about 60 to 70 on the 10D sphere). `selection=False` gives the MATLAB scheme.
+- Survivors are selected from parents and offspring (the best `pop_size` survive), as in the evolutionary programming base of CAEP (Chung and Reynolds 1998). MATLAB had no selection, and the default influence type did not converge (about 60 to 70 on the 10D sphere). `selection=False` gives the MATLAB scheme.
 - The belief space (normative and situational knowledge) is updated with the problem's comparison rules, so maximization and constraints work.
 - At least two solutions are accepted. With one, the normative intervals have zero width and the search stalls.
 - The four influence types keep the YPEA for MATLAB definitions. They come from Reynolds and Chung (1997), "Knowledge-based self-adaptation in evolutionary programming using cultural algorithms", IEEE ICEC, as given in Engelbrecht (2007), Section 14.3.4, equations 14.12 to 14.16. Two differences from that source: every step is multiplied by `alpha` (the source has no such factor, so `alpha=1` reproduces it for types 1, 3 and 4), and type 2 uses a fixed step of 0.1 alpha instead of the self adapted strategy parameter of evolutionary programming.
 
 ### FA
 
-- A firefly moves only toward strictly brighter fireflies (A12). The brightest firefly makes a random walk of `alpha * delta * U(-1, 1)`, as in the paper.
+- A firefly moves only toward strictly brighter fireflies (A12). The brightest firefly makes a random walk of `alpha * delta * U(-1, 1)`. The paper's random term is alpha (rand - 1/2) in problem units.
 - Each firefly moves toward every brighter firefly in turn, and the moves add up. It is evaluated once after all its moves, so an iteration costs `pop_size` evaluations. MATLAB evaluated one candidate per brighter firefly (up to `pop_size` squared evaluations) and kept only the best.
 
 ### HS
 
 - The damped bandwidth is used for pitch adjustment, so `fret_width_damp` has an effect (A3).
 - Pitch adjustment adds `bandwidth * U(-1, 1)`, as in Lee and Geem (2005). MATLAB used a normal distribution.
-- `fret_width_damp=1` and `new_count=1` give the paper's fixed bandwidth and one new harmony per iteration.
+- `fret_width_damp=1` keeps the bandwidth fixed, and `new_count=1` gives the one new harmony per iteration of the paper. The 2001 paper itself moves discrete values to a neighboring value.
 
 ### ICA
 
 - Empire power and the imperialistic competition use rank based costs, so they work for maximization, any objective scale, and constraints (F2). The total cost of an empire is c(imperialist) + zeta * mean(c(colonies)), where c is the normalized rank from 0 (best) to 1 (worst).
-- A collapsed empire's imperialist really becomes a colony of the winning empire (A7).
+- A collapsed empire's imperialist really becomes a colony of an empire drawn by the same competition (A7).
 - The weakest empire never wins the competition for its own colony: the winner is drawn among the other empires only.
-- The initial colonies are split in proportion to the imperialists' power, as in the paper. MATLAB drew the empire of each colony at random.
+- The competition follows the paper by default: the empire with the largest P - U(0, 1) wins, where P is the possession probability from the normalized total costs. `competition="roulette"` gives the MATLAB draw.
+- The defaults are the paper's values: `assimilation_coeff=2`, `zeta=0.1` and `empire_count=10` (MATLAB 1.5, 0.2 and 5). See the defaults table below.
+- The initial colonies are split in proportion to the imperialists' power, as in the paper (with the rank based power and largest remainder rounding, so the counts add up). MATLAB drew the empire of each colony at random.
 - A colony that revolts is evaluated once. MATLAB evaluated it twice.
 - Each iteration evaluates exactly `pop_size` solutions.
 
@@ -140,6 +142,7 @@ Item codes (F1, V1, A1, and so on) label the defects found in a review of the MA
 - Each phase updates all learners at once (synchronous). MATLAB updated them one by one.
 - A learner moves away from its partner only if it is strictly better than the partner, otherwise toward it, as in the paper.
 - `pop_size` must be at least 2.
+- An iteration costs `2 * pop_size` evaluations, one per learner in each phase. The paper counts `pop_size` per generation, so its evaluation budgets are half the real cost.
 
 ## Default values
 
@@ -154,14 +157,17 @@ Defaults follow the value recommended in each algorithm's paper, and a default c
 | GA | `crossover_inflation` | 0.1 | 0.5 (BLX-0.5) | Eshelman and Schaffer (1993), Simon (2013), Engelbrecht (2007) | 41 wins, 70 ties, 8 losses on the same 119 problems, Friedman rank 1.42 against 1.58. Slightly worse mean rank on CEC 2017 at d = 30 (1.59) |
 | CMA-ES | `pop_size` | 100 | 4 + floor(3 ln n) | Hansen (2016), Table 1, p. 31 | paper value |
 | IWO | step size schedule | `step_size_damp = 0.001` per iteration | `final_step_size = 0.001` with `modulation_index = 2` | schedule form of Mehrabian and Lucas (2006) | the MATLAB schedule stopped the search (see IWO above) |
-| CA | `selection` | none | `True` | Reynolds (1994) | about 60 to 70 on the 10D sphere without it (see CA above) |
+| CA | `selection` | none | `True` | Chung and Reynolds (1998), CAEP | about 60 to 70 on the 10D sphere without it (see CA above) |
 | BA | `neighborhood` | one component | `"patch"` | Pham et al. (2006) | see BA above |
+| ICA | `assimilation_coeff`, `zeta`, `empire_count`, `competition` | 1.5, 0.2, 5, roulette | 2, 0.1, 10, `"paper"` (the largest P - U(0, 1)) | Atashpaz-Gargari and Lucas (2007) | 30 wins, 83 ties, 6 losses on 119 problems (classic d = 10 and 30, CEC 2017 d = 10 and 30, combinatorial), Friedman rank 1.80 against 2.35 |
 
 Paper values that were tested and not adopted, because they did worse on the benchmarks (classic functions shifted and rotated at d = 10 and 30, and CEC 2017, with 15 runs and 10 000 * d evaluations, comparing the Friedman rank of the mean error and the Wilcoxon rank sum wins, ties and losses):
 
 | Algorithm | Parameter | Default (MATLAB) | Paper value | Source | Evidence (new against old) |
 |---|---|---|---|---|---|
 | ABC | `pop_size` (SN) | 100 | 10 (colony of 20) | Karaboga (2005), Table 2, p. 8 | Friedman rank 1.56 against 1.44 over 108 problems (classic and CEC 2017, d = 10 and 30). Significantly worse on CEC 2017 at d = 30 (p = 0.005). Better on the classic functions at d = 30 |
-| FA | `pop_size` | 100 | 40 | Yang (2009), p. 8 | Friedman rank 1.67 against 1.33 over the classic functions at d = 10 and 30, and significantly worse at d = 30 (2 wins, 12 ties, 11 losses, p = 0.003) |
+| FA | `pop_size` | 100 | 40 | Yang (2009), p. 176 | Friedman rank 1.67 against 1.33 over the classic functions at d = 10 and 30, and significantly worse at d = 30 (2 wins, 12 ties, 11 losses, p = 0.003) |
+| HS | `new_count` | 20 | 1 (one new harmony per iteration) | Geem, Kim and Loganathan (2001) | 1 win, 39 ties, 10 losses over the classic functions at d = 10 and 30, significantly worse at d = 10 (p = 0.003) |
+| BA | site counts, `dance_radius` | 0.5, 0.4, 0.1, radius 0.1 | 0.1, 1/3, 0.05, radius 0.03 | Pham et al. (2006) | 48 wins, 26 ties, 45 losses on 119 problems: better at d = 10, worse at d = 30 (CEC 2017 d = 30: 2 wins, 21 losses). The smaller patch alone gave 53 wins, 24 ties, 42 losses with the same split |
 
-The other defaults either equal their paper value (CMA-ES, IPOP-CMA-ES, L-SHADE, FA `gamma` and `alpha`), use the standard published values (JADE, SHADE, Nelder-Mead) or keep the YPEA for MATLAB value, because their papers give no general value or have not been checked yet.
+The other defaults either equal their paper value (CMA-ES, IPOP-CMA-ES, L-SHADE, FA `gamma`), use the standard published values (JADE, SHADE, Nelder-Mead) or keep the YPEA for MATLAB value, because their papers give no general value or have not been checked yet.

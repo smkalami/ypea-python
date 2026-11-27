@@ -95,9 +95,29 @@ The problem compares solutions, so every algorithm handles constraints the same 
 2. Of two infeasible solutions, the one with the smaller total violation wins.
 3. Of two feasible solutions, the one with the better objective value wins.
 
-The rules need no tuning, and the objective value of an infeasible solution never matters.
+The rules need no tuning. Two infeasible solutions with exactly the same violation are ordered by their objective values, a tie that Deb (2000) leaves open.
 
-**Penalty** (`constraints="penalty"`): solutions are compared by `f + penalty * violation` (in "smaller is better" terms, so for maximization the penalty lowers the value), and ties by the violation. `penalty` defaults to 1e6.
+**Scaling of the constraints.** Constraints often differ in size: a stress limit in megapascals and a length in meters. Added up raw, the largest one would decide every comparison. So, as Deb (2000) recommends, each constraint is scaled before the sum. By default (`constraint_scaling=True`) a run divides each constraint by its largest violation among its first solutions, and keeps these scales for the whole run, so comparisons stay consistent. Equalities are scaled the same way, after the inequalities.
+
+- The scales come from at least 20 solutions. When an algorithm starts with fewer (CMA-ES starts with one point, Nelder-Mead with d + 1, SA and HS with 10), the run first evaluates random solutions to make up 20. They count as evaluations, and they can become the best solution.
+- A constraint that no early solution violates keeps the scale 1.
+- `Result.constraint_scale` holds the scales. Every violation in the result (the best solution, the traces, the front and the evaluation log) is the scaled sum, and `problem.evaluate(solution)` still gives the raw sum.
+- Feasibility does not depend on the scales: a solution is feasible exactly when every constraint is satisfied.
+
+`constraint_scaling=False` adds the raw violations, and a list gives your own scales, one per constraint (the inequalities, then the equalities):
+
+```python
+def beam(sol):
+    width, height = sol.x
+    stress = 6000 / (width * height**2)  # MPa, at most 200
+    weight = width * height
+    return weight, [stress - 200, height / width - 4]
+
+
+problem = ypea.Problem(ypea.Real("x", shape=2, lb=0.5, ub=10), beam, constraint_scaling=[200, 1])
+```
+
+**Penalty** (`constraints="penalty"`): solutions are compared by `f + penalty * violation` (in "smaller is better" terms, so for maximization the penalty lowers the value), and ties by the violation. `penalty` defaults to 1e6. The violation is the scaled one (see above), so one penalty suits constraints of any size.
 
 ```python
 penalized = ypea.Problem(ypea.Binary("x", shape=20), knapsack, sense="max",

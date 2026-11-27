@@ -17,18 +17,36 @@ class StopRun(BaseException):  # noqa: N818 (a signal, not an error)
         self.reason = reason
 
 
-def parse_values(raw, n, vectorized, n_obj=1, eq=None):
+# fewest solutions the scales of the constraints are taken from
+SCALING_SAMPLE = 20
+
+
+def parse_values(raw, n, vectorized, n_obj=1, eq=None, parts=False):
     """Turn the objective values of a batch of n solutions into (F, V, constrained).
 
     ``raw`` is what a vectorized objective returns for the batch, or else a sequence with
     one return value per solution. F has shape (n,), or (n, n_obj) with several objectives.
-    ``eq`` holds the equality tolerances of the problem.
+    ``eq`` holds the equality tolerances of the problem. With ``parts``, V has shape (n, c),
+    the violation of each constraint before the sum.
     """
     if vectorized:
-        return (*parse_batch(raw, n, n_obj, eq), isinstance(raw, tuple))
+        return (*parse_batch(raw, n, n_obj, eq, parts), isinstance(raw, tuple))
     raw = list(raw)
     if len(raw) != n:
         raise ValueError(f"expected {n} objective values, got {len(raw)}")
+    if parts:
+        rows = [parse_result(r, n_obj, eq, parts=True) if isinstance(r, tuple) else None for r in raw]
+        counts = {len(row[1]) for row in rows if row is not None}
+        if len(counts) > 1:
+            raise ValueError(f"every solution must return the same number of constraints, got {sorted(counts)}")
+        P = np.zeros((n, counts.pop() if counts else 0))
+        F = np.empty(n if n_obj == 1 else (n, n_obj))
+        for k, (r, row) in enumerate(zip(raw, rows, strict=True)):
+            if row is not None:
+                F[k], P[k] = row
+            else:
+                F[k] = _scalar(r) if n_obj == 1 else parse_result(r, n_obj)[0]
+        return F, P, bool(counts) or any(row is not None for row in rows)
     F, V = np.empty(n if n_obj == 1 else (n, n_obj)), np.zeros(n)
     constrained = False
     for k, r in enumerate(raw):
@@ -81,6 +99,10 @@ class Evaluator:
         self.log = [] if keep_evaluations else None
         self.stop_reason = None
         self.constrained = False  # set when the objective returns (f, g)
+        self.rng = None  # the run's generator, set by the algorithm (draws the scaling sample)
+        scaling = problem.constraint_scaling
+        self._parts = scaling is not False  # parse the violation of each constraint
+        self.constraint_scale = None if scaling is True or scaling is False else scaling
 
     def __call__(self, X) -> Population:
         X = np.clip(np.atleast_2d(np.asarray(X, dtype=float)), 0.0, 1.0)
@@ -90,24 +112,66 @@ class Evaluator:
         V = np.full(n, np.inf)
         m = n if self.max_nfe is None else max(0, min(n, self.max_nfe - self.nfe))
         if m:
-            f, v = self._evaluate(X[:m] if m < n else X)
-            # NaN, inf and -inf all count as the worst value (-inf would otherwise win a minimization)
-            if single:
-                F[:m] = np.where(np.isfinite(f), f, self.cmp.worst_value)
-            else:  # a row with any non-finite objective is the worst in every objective
-                F[:m] = np.where(np.isfinite(f).all(axis=1, keepdims=True), f, self.cmp.worst_value)
-            V[:m] = np.where(np.isnan(v), np.inf, v)
-            if single:
-                self._update_best(X[:m], F[:m], V[:m])
-                self._update_feasible(X[:m], F[:m], V[:m])
-            else:
-                self._update_archive(X[:m], F[:m], V[:m])
-            if self.log is not None:
-                self.log.append((X[:m].copy(), F[:m].copy(), V[:m].copy()))
-            self.nfe += m
+            Xm = X[:m] if m < n else X
+            f, v = self._evaluate(Xm)
+            sample = None
+            if self._parts and self.constraint_scale is None and v.shape[1]:
+                sample = self._scaling_sample(m, v.shape[1])
+                self.constraint_scale = _scales(v if sample is None else np.vstack([v, sample[2]]))
+            F[:m], V[:m] = self._accept(Xm, f, self._reduce(v))
+            if sample is not None:
+                self._accept(sample[0], sample[1], self._reduce(sample[2]))
         if self.max_nfe is not None and self.nfe >= self.max_nfe and self.stop_reason is None:
             self.stop_reason = "max_nfe"
         return Population(X, F, V)
+
+    def _accept(self, X, f, v):
+        """Record m evaluated rows: clean the values, track the best, log, count."""
+        single = self.n_obj == 1
+        # NaN, inf and -inf all count as the worst value (-inf would otherwise win a minimization)
+        if single:
+            F = np.where(np.isfinite(f), f, self.cmp.worst_value)
+        else:  # a row with any non-finite objective is the worst in every objective
+            F = np.where(np.isfinite(f).all(axis=1, keepdims=True), f, self.cmp.worst_value)
+        V = np.where(np.isnan(v), np.inf, v)
+        if single:
+            self._update_best(X, F, V)
+            self._update_feasible(X, F, V)
+        else:
+            self._update_archive(X, F, V)
+        if self.log is not None:
+            self.log.append((X.copy(), F.copy(), V.copy()))
+        self.nfe += len(X)
+        return F, V
+
+    def _scaling_sample(self, m, c):
+        """Evaluate random solutions so the scales come from at least SCALING_SAMPLE rows.
+        Returns (X, F, V parts), or None when the batch is large enough or the budget ends."""
+        k = SCALING_SAMPLE - m
+        if self.max_nfe is not None:
+            k = min(k, self.max_nfe - self.nfe - m)
+        if k <= 0 or self.rng is None:
+            return None
+        X = self.rng.random((k, self.problem.code_size))
+        f, v = self._evaluate(X)
+        if v.shape[1] == 0:
+            v = np.zeros((k, c))
+        elif v.shape[1] != c:
+            raise ValueError(f"every solution must return the same number of constraints, got {c} and {v.shape[1]}")
+        return X, f, v
+
+    def _reduce(self, v):
+        """Total violation of each row: the plain values, or the scaled sum of the parts."""
+        if not self._parts:
+            return v
+        if not v.shape[1]:
+            return np.zeros(len(v))
+        if self.constraint_scale is None:  # only an unconstrained row can get here
+            return v.sum(axis=1)
+        if v.shape[1] != len(self.constraint_scale):
+            raise ValueError(f"constraint_scaling has {len(self.constraint_scale)} entries, but the objective "
+                             f"returned {v.shape[1]} constraints")
+        return (v / self.constraint_scale).sum(axis=1)
 
     def _evaluate(self, X):
         p = self.problem
@@ -116,7 +180,7 @@ class Evaluator:
             raw = p.objective(sols)
         else:
             raw = list(map(p.objective, sols)) if self.executor is None else list(self.executor.map(p.objective, sols))
-        F, V, constrained = parse_values(raw, len(X), p.vectorized, p.n_obj, p.equality_tolerance)
+        F, V, constrained = parse_values(raw, len(X), p.vectorized, p.n_obj, p.equality_tolerance, self._parts)
         self.constrained |= constrained
         return F, V
 
@@ -226,3 +290,10 @@ class Evaluator:
             X_new, F_new, V_new, ids_new = X_new[keep], F_new[keep], V_new[keep], ids_new[keep]
         self.archive = Population(X_new, F_new, V_new)
         self._archive_ids = ids_new
+
+
+def _scales(P):
+    """Scale of each constraint: its largest finite violation in P, or 1 if that is 0."""
+    P = np.where(np.isfinite(P), P, 0.0)
+    s = P.max(axis=0)
+    return np.where(s > 0, s, 1.0)

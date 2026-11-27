@@ -58,11 +58,24 @@ def sphere_in_order(sol):
     return s
 
 
-def test_pso_trace_matches_studio_exactly():
-    data = json.loads((DATA / "pso_sphere.json").read_text())
-    p = ypea.Problem(ypea.Real("x", shape=10, lb=-10, ub=10), sphere_in_order)
-    seed = ypea.StudioRng(ypea.derive_seed(data["project"]["run"]["seed"], 0))
-    alg = ypea.PSO(pop_size=30, max_nfe=data["project"]["run"]["budget"])
+def rosenbrock_in_order(sol):
+    x, s = sol.x, 0.0
+    for i in range(len(x) - 1):  # summed in index order
+        d = x[i + 1] - x[i] * x[i]
+        s += 100 * d * d + (1 - x[i]) * (1 - x[i])
+    return s
+
+
+@pytest.mark.parametrize("name", ["pso_sphere", "pso_sphere_w_final", "pso_sphere_max_velocity",
+                                  "pso_rosenbrock_both"])
+def test_pso_trace_matches_studio_exactly(name):
+    data = json.loads((DATA / f"{name}.json").read_text())
+    project = data["project"]
+    var, run = project["variables"][0], project["run"]
+    f = rosenbrock_in_order if "rosenbrock" in name else sphere_in_order
+    p = ypea.Problem(ypea.Real("x", shape=var["shape"][0], lb=var["lb"], ub=var["ub"]), f)
+    seed = ypea.StudioRng(ypea.derive_seed(run["seed"], 0))
+    alg = ypea.PSO(**run["settings"], max_nfe=run["budget"])
     for _ in range(2):  # the same StudioRng object gives the same run twice
         r = alg.solve(p, seed=seed)
         assert r.nfe == data["nfe"]

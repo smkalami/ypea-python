@@ -42,7 +42,7 @@ def tricky(sol):
 @pytest.mark.parametrize("max_nfe", [None, 333])
 def test_evaluator_trace_matches_sequential_loop(sense, constraints, max_nfe):
     problem = ypea.Problem(ypea.Real("x", shape=2, lb=-1, ub=1), tricky, sense=sense,
-                           constraints=constraints, penalty=3.0)
+                           constraints=constraints, penalty=3.0, constraint_scaling=False)
     rng = np.random.default_rng(0)
     batches = [rng.uniform(-0.1, 1.1, (n, 2)) for n in (1, 7, 50, 3, 200, 50, 100)]
     ev = Evaluator(problem, max_nfe=max_nfe)

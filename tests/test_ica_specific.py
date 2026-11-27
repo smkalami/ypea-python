@@ -1,6 +1,7 @@
 """Checks of the ICA empire bookkeeping."""
 
 import numpy as np
+import pytest
 
 from ypea.algorithms.ica import ICA
 
@@ -79,7 +80,7 @@ class LastChoice:
 
 
 def test_competition_never_gives_the_weakest_empire_its_own_colony(sphere10):
-    alg = ICA(pop_size=10, empire_count=3, max_iter=1)
+    alg = ICA(pop_size=10, empire_count=3, max_iter=1, competition="roulette")
     alg.solve(sphere10, seed=0)
     alg.imperialists = np.array([0, 1, 2])
     alg.empire_of = np.array([0, 1, 2, 0, 0, 1, 1, 0, 2, 2])
@@ -87,3 +88,29 @@ def test_competition_never_gives_the_weakest_empire_its_own_colony(sphere10):
     c = np.linspace(0, 1, 10)  # empire 2 is the weakest, and country 9 its weakest colony
     alg.compete(c)
     assert alg.empire_of[9] == 1 and np.array_equal(alg.imperialists, [0, 1, 2])
+
+
+class FixedRandom:
+    """A stand-in generator whose random draws are all r."""
+
+    def __init__(self, r):
+        self.r = r
+
+    def random(self, n):
+        return np.full(n, self.r)
+
+
+def test_paper_competition_takes_the_largest_p_minus_r(sphere10):
+    alg = ICA(pop_size=10, empire_count=3, max_iter=1, competition="paper")
+    alg.solve(sphere10, seed=0)
+    alg.imperialists = np.array([0, 1, 2])
+    alg.empire_of = np.array([0, 1, 2, 0, 0, 1, 1, 0, 2, 2])
+    alg.rng = FixedRandom(0.5)
+    c = np.linspace(0, 1, 10)  # empire 0 is the strongest, so it has the largest P
+    alg.compete(c)
+    assert alg.empire_of[9] == 0 and np.array_equal(alg.imperialists, [0, 1, 2])
+
+
+def test_competition_setting_is_checked():
+    with pytest.raises(ValueError, match="competition"):
+        ICA(competition="argmax").validate()

@@ -137,7 +137,8 @@ class AskTell:
             raise RuntimeError("call ask() before tell()")
         # parsed here, so wrong values raise in this thread and the run can go on
         p = self.problem
-        parsed = parse_values(values, len(self.codes), p.vectorized, p.n_obj, p.equality_tolerance)
+        parsed = parse_values(values, len(self.codes), p.vectorized, p.n_obj, p.equality_tolerance,
+                              p.constraint_scaling is not False)
         self._asked = False
         self._to_worker.put(("values", parsed))
         self._wait()

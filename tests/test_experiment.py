@@ -260,11 +260,12 @@ def test_igd_and_hypervolume_are_stored_and_compared(tmp_path):
     assert cp["hypervolume"][0] <= cp["hypervolume"][1]
     # error means IGD with a true front, smaller is better, and hypervolume is larger is better
     t = rep.table(stats=("mean",))
-    assert "mean IGD" in t.notes[-1] and rep.smaller_is_better(p.name)
+    # without SciPy the last note says the rank sum test is missing
+    assert ("mean IGD" in t.notes[-1] or stats.scipy_stats() is None) and rep.smaller_is_better(p.name)
     assert t.data["describe"][p.name]["RS"]["mean"] == pytest.approx(rep.values("RS", p.name, "igd").mean())
     assert not rep.smaller_is_better(p.name, "hypervolume")
     t = rep.table(metric="hypervolume", stats=("mean",))
-    assert "mean hypervolume" in t.notes[-1]
+    assert "mean hypervolume" in t.notes[-1] or stats.scipy_stats() is None
     assert t.data["friedman"]["ranks"].tolist() == [1.0, 2.0]  # NSGA-II beats random search
     grid, curves = rep.curves("RS", p.name, "igd")
     assert grid.tolist() == [300, 600] and curves[0].tolist() == pytest.approx(cp["igd"])

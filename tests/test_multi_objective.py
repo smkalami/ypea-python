@@ -200,7 +200,8 @@ def test_archive_matches_brute_force(sense, constraints, max_nfe):
 
 
 def test_archive_keeps_least_violating_until_feasible():
-    p = ypea.Problem(ypea.Real("x", shape=2, lb=0, ub=1), lambda s: ([s.x[0], 1 - s.x[0]], 0.5 - s.x[1]), n_obj=2)
+    p = ypea.Problem(ypea.Real("x", shape=2, lb=0, ub=1), lambda s: ([s.x[0], 1 - s.x[0]], 0.5 - s.x[1]), n_obj=2,
+                     constraint_scaling=False)
     ev = Evaluator(p)
     ev(np.array([[0.1, 0.1], [0.2, 0.3], [0.9, 0.3]]))  # all infeasible, the last two equally
     assert sorted(ev.archive.V.tolist()) == pytest.approx([0.2, 0.2])

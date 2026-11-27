@@ -72,6 +72,7 @@ def scalarize(problem, weights, method="weighted_sum", ideal=None) -> Problem:
     return Problem(problem.vars, objective, "min", vectorized=problem.vectorized,
                    constraints=problem.constraints, penalty=problem.penalty,
                    equality_atol=problem.equality_atol, equality_rtol=problem.equality_rtol,
-                   equality_scale=problem.equality_scale, name=f"{problem.name} ({method})",
+                   equality_scale=problem.equality_scale, constraint_scaling=problem.constraint_scaling,
+                   name=f"{problem.name} ({method})",
                    info={**problem.info, "scalarized": {"weights": w.tolist(), "method": method,
                                                         "ideal": None if z is None else z.tolist()}})

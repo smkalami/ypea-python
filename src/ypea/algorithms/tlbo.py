@@ -27,8 +27,10 @@ class TLBO(Algorithm):
 
     Differences from the paper: each phase updates all learners at once, from the same
     class (synchronous). The paper describes the phases learner by learner, and an
-    asynchronous version lets later learners see the earlier updates. The paper's
-    removal of duplicate solutions is not done.
+    asynchronous version lets later learners see the earlier updates. The random factor
+    r is drawn per learner and per component, and TF per learner (the paper writes one
+    r and one TF). An iteration costs ``2 * pop_size`` evaluations, while the paper
+    counts ``pop_size`` per generation.
 
     Reference
     ---------

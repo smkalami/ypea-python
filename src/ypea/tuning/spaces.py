@@ -237,6 +237,7 @@ SPACES = {
         "revolution_step_size": _STEP,
         "revolution_step_size_damp": _DAMP,
         "zeta": real(0.0, 0.5, valid=_POS),
+        "competition": categorical("roulette", "paper"),
     }, integer(30, 200, valid=(3, None))),
     alg.IPOPCMAES: _space({
         "sigma0": real(0.1, 0.6, valid=_POS),

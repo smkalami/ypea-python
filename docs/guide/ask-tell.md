@@ -55,7 +55,7 @@ print(round(run.result().best.obj_value, 3))
 0.505
 ```
 
-The batch size changes from call to call. Population methods usually ask for a whole population, while Nelder-Mead asks for one solution at a time after its first simplex. The run never asks for more evaluations than `max_nfe`, so the last batch can be smaller.
+The batch size changes from call to call. Population methods usually ask for a whole population, while Nelder-Mead asks for one solution at a time after its first simplex. The run never asks for more evaluations than `max_nfe`, so the last batch can be smaller. On a problem with constraints, a run whose first batch has fewer than 20 solutions then asks for a batch of random solutions, from which it takes the scales of the constraints (see [Scaling of the constraints](objectives.md#comparing-solutions-with-constraints)).
 
 A problem may still have an objective. Then you can evaluate some solutions with it and others elsewhere. A problem with `objective=None` works only with `ask_tell`, and `solve` raises an error for it.
 

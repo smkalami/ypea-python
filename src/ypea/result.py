@@ -142,6 +142,10 @@ class Result:
     With several objectives, ``best`` and ``best_feasible`` are None, and ``front`` holds
     the non-dominated solutions (a ``Front``). ``evaluations`` holds every evaluated
     solution when the run was started with ``keep_evaluations=True``.
+
+    ``constraint_scale`` holds the scale of each constraint (the inequalities, then the
+    equalities) when the problem scales its constraints, or None. Every violation in the
+    result is the sum of the violations divided by these scales.
     """
 
     best: Individual | None
@@ -159,6 +163,7 @@ class Result:
     front: Front | None = None
     best_feasible: Individual | None = None
     evaluations: Evaluations | None = None
+    constraint_scale: np.ndarray | None = None
 
     @property
     def error(self) -> float | None:
@@ -181,6 +186,7 @@ class Result:
                         "best_violation": h.best_violation, "time": h.time},
             "trace": {"nfe": h.trace_nfe, "obj_value": h.trace_obj_value, "violation": h.trace_violation},
             "extra": self.extra,
+            "constraint_scale": self.constraint_scale,
         }
         if self.front is None:
             d["best_feasible"] = _individual(self.best_feasible)

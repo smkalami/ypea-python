@@ -25,7 +25,7 @@ print(result.best.obj_value, result.best.feasible, problem.optimum)
 ```
 
 ```text
-1.7248523085973653 True 1.7248523085975365
+1.7248523085973648 True 1.7248523085975365
 ```
 
 The docstring of each function gives the formulas, the bounds and the variants found in the literature.

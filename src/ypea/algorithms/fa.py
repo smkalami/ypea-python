@@ -39,7 +39,9 @@ class FA(Algorithm):
     merge with the old population and the ``delta`` scale follow YPEA for MATLAB. With
     the default beta_base = 2, the mean attraction is 1, as with beta_0 = 1 in the paper.
     As in Yang's reference code, the light intensities are updated once per iteration,
-    not after every single move.
+    not after every single move. The random term alpha (rand - 1/2) of eq. 9 becomes
+    ``alpha * delta * U(-1, 1)`` in code units, and ``alpha_damp`` shrinks it, which the
+    paper only suggests as future work.
 
     References: X.-S. Yang, "Firefly algorithms for multimodal optimization", Stochastic
     Algorithms: Foundations and Applications (SAGA 2009), LNCS 5792, pp. 169 to 178.

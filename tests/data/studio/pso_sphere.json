@@ -1,5 +1,5 @@
 {
- "ypea": "0.2.0 (working copy)",
+ "ypea": "0.6.0",
  "project": {
   "format": "ypea-studio-project",
   "version": 1,
@@ -17,8 +17,7 @@
   ],
   "objective": {
    "sense": "min",
-   "source": "sum(x ** 2)",
-   "builtin": "sphere"
+   "source": "sum(x ** 2)"
   },
   "run": {
    "method": "pso",
@@ -29,6 +28,7 @@
    "seed": 7
   }
  },
+ "scales": [],
  "nfe": 3020,
  "traceNfe": [
   1,
@@ -45,6 +45,14 @@
   192.8177647409137,
   110.85338924247677,
   57.640681533973854
+ ],
+ "traceV": [
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0
  ],
  "bestCodes": [
   0.5601494803519438,

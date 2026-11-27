@@ -25,6 +25,7 @@ from pathlib import Path
 
 import numpy as np
 
+from ..evaluation import parse_values
 from ..experiment import stats, store
 from ..result import _plain
 from .spaces import as_space
@@ -298,6 +299,10 @@ def run_one(task):
     f = r.error if r.error is not None else (-1.0 if problem.sense == "max" else 1.0) * r.best.obj_value
     f = math.inf if math.isnan(f) else float(f)
     v = float(r.best.violation)
+    if v > 0 and r.constraint_scale is not None:  # raw units, since each run has its own scales
+        sols = problem.decode(r.best.position[None])
+        raw = problem.objective(sols) if problem.vectorized else [problem.objective(sols[0])]
+        v = float(parse_values(raw, 1, problem.vectorized, problem.n_obj, problem.equality_tolerance)[1][0])
     if path is not None:
         store.write_json(path, {"key": key, "f": f, "v": v, "settings": _plain(settings),
                                 "problem": problem.name, "seed": seed})

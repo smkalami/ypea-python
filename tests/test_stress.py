@@ -78,7 +78,8 @@ def test_never_feasible(name):
     alg = make(name, max_nfe=1500)
     r = alg.solve(ypea.Problem(real(3), never_feasible), seed=4)
     check_state(alg, r)
-    assert not r.best.feasible and 1 <= r.best.violation < 2
+    # one constraint, so the raw violation is the scaled one times the scale
+    assert not r.best.feasible and 1 <= r.best.violation * r.constraint_scale[0] < 2
 
 
 @pytest.mark.parametrize("name", NAMES)

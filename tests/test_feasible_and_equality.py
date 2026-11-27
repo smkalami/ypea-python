@@ -63,11 +63,12 @@ def test_log_matches_ask_and_tell():
         vals = [tricky(s) for s in sols]
         told += vals
         run.tell(vals)
-    ev = run.result().evaluations
+    r = run.result()
+    ev = r.evaluations
     assert len(ev) == 333 and ev.nfe.tolist() == list(range(1, 334))
     assert ev.positions.tolist() == np.concatenate(codes).tolist()
     assert ev.obj_values.tolist() == [f for f, _ in told]
-    assert ev.violations.tolist() == [max(v, 0.0) for _, v in told]
+    assert ev.violations.tolist() == [max(v, 0.0) / r.constraint_scale[0] for _, v in told]
     feas = ev[ev.feasible]
     assert feas.violations.max() <= 0 and len(feas) == int(ev.feasible.sum())
     srt = ev[np.argsort(ev.obj_values, kind="stable")]

@@ -96,7 +96,8 @@ class MOPSO(Algorithm):
     Parameters
     ----------
     pop_size : number of particles (default 100, as in the paper)
-    w : inertia weight (default 0.4, as in the paper)
+    w : inertia weight (default 0.7). The paper uses 0.4. On 21 ZDT, DTLZ and WFG problems
+        (15 runs, 25 000 evaluations), 0.7 gave a better IGD on 13 and a worse one on 6.
     repository_size : the largest size of the leader repository (default 100)
     divisions : number of grid divisions per objective (default 30)
     mutation_rate : sets how fast mutation fades, through the exponent 5 / mutation_rate
@@ -133,7 +134,7 @@ class MOPSO(Algorithm):
     short_name = "MOPSO"
     objectives = "multi"
 
-    def __init__(self, *, w=0.4, repository_size=100, divisions=30, mutation_rate=0.5,
+    def __init__(self, *, w=0.7, repository_size=100, divisions=30, mutation_rate=0.5,
                  max_archive=None, **kwargs):
         self.w = w
         self.repository_size = repository_size
