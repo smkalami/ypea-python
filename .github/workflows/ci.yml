@@ -6,6 +6,8 @@ on:
 
 jobs:
   test:
+    # runs in public repositories only, where Actions minutes are free
+    if: ${{ !github.event.repository.private }}
     strategy:
       fail-fast: false
       matrix:
