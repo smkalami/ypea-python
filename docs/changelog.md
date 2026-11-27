@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 (2026-11-27)
 
 - **MOPSO inertia (seeded MOPSO results change once):** the default `w` is now 0.7 (before 0.4, the paper's value). On 21 ZDT, DTLZ and WFG problems (15 runs, 25 000 evaluations), 0.7 had 13 wins, 2 ties and 6 losses in IGD and 12 wins, 4 ties and 5 losses in hypervolume. `MOPSO(w=0.4)` gives the paper's setting.
 - **Constraint scaling (seeded results on constrained problems change once):** each constraint is divided by its largest violation among the first solutions of a run (at least 20, so algorithms that start with fewer evaluate random solutions to make up 20), as Deb (2000) recommends, so constraints of different sizes count alike. The scales stay fixed for the run and are in `Result.constraint_scale`. The penalty uses the scaled violation too. `Problem(constraint_scaling=False)` gives the raw sum as before, and a list gives fixed scales. See [Scaling of the constraints](guide/objectives.md#comparing-solutions-with-constraints).
