@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 (2026-11-28)
 
+- **Native space for several objectives:** NSGA-II, NSGA-III, SPEA2 and MOEA/D take `space="native"` and `operators=`, as GA does. Permutation, integer, selection and partition variables get their native operators, and real variables keep SBX and polynomial mutation, so problems with only real variables give the same results. The default `space="encoded"` is unchanged. See [Native operators](guide/operators.md#several-objectives).
+- **Indicators:** a test now covers experiments with mixed senses (one objective minimized, one maximized), and the guide explains how to use `ypea.indicators` directly with maximized objectives.
 - **Docs:** figures and diagrams throughout: how the library fits together, how each variable type decodes its codes, the run loop, the constraint rules, ask and tell, the tuning race, benchmark functions, test problem solutions, Pareto fronts, indicators, operators, experiment reports, and a figure of how each algorithm searches. `docs/figures/make_figures.py` makes every figure from seeded runs.
 
 ## 0.7.0 (2026-11-27)

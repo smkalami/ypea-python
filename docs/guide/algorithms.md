@@ -21,7 +21,7 @@ No algorithm is best on every problem, so compare a few on your problem with an 
 - **Continuous problems, a budget of 10 000 evaluations per dimension or more:** L-SHADE and IPOP-CMA-ES are strong baselines on the CEC benchmarks. JADE and SHADE are close behind.
 - **Smooth or badly scaled continuous problems, or a small budget:** CMA-ES adapts to the shape of the function. Nelder-Mead is a fast local method for a few variables.
 - **A simple and robust first try:** DE or PSO, with few settings to choose.
-- **Permutations, selections and binary problems:** GA and SA with `space="native"` use operators made for these types (see [Native operators](operators.md)). The other algorithms also work through the [0, 1] codes.
+- **Permutations, selections and binary problems:** GA and SA (and NSGA-II, NSGA-III, SPEA2 and MOEA/D for several objectives) with `space="native"` use operators made for these types (see [Native operators](operators.md)). The other algorithms also work through the [0, 1] codes.
 - **Several objectives:** NSGA-II for two or three objectives, NSGA-III for three or more (see [Multiple objectives](multi-objective.md)).
 - **A baseline:** every method should beat Random Search with the same budget.
 

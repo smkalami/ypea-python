@@ -7,7 +7,7 @@ import numpy as np
 from ..algorithm import Algorithm, check, is_int, is_real
 from ..benchmarks.multi import das_dennis
 from ..comparison import Comparator
-from ..operators import SBX, PolynomialMutation, check_operator
+from ..operators import SBX, PolynomialMutation, check_space, native_variation
 
 DECOMPOSITIONS = ("tchebycheff", "weighted_sum", "pbi")
 
@@ -69,6 +69,13 @@ class MOEAD(Algorithm):
         children of SBX the first is kept (SBX swaps them at random).
     mutation : ypea.operators.Mutation or None. The default (None) is the paper's
         polynomial mutation with index 20 and rate 1/n, ``PolynomialMutation()``.
+    space : "encoded" (the default) applies ``crossover`` and ``mutation`` to the [0, 1]
+        codes. "native" decodes each variable and applies its native operators, as GA does
+        (permutation crossovers and moves, integer and selection operators, see the guide
+        Native operators). Real variables keep SBX and polynomial mutation, so a problem
+        with only Real variables runs exactly as with "encoded".
+    operators : dict or None
+        Native operators per variable name, as in GA (needs ``space="native"``).
     batch : bool
         False (the default) follows the paper: each child is evaluated on its own and
         updates the population before the next child is bred. True is a variant for costly
@@ -108,12 +115,14 @@ class MOEAD(Algorithm):
     objectives = "multi"
 
     def __init__(self, *, neighbors=20, decomposition="tchebycheff", theta=5.0, crossover=None, mutation=None,
-                 batch=False, max_archive=None, **kwargs):
+                 space="encoded", operators=None, batch=False, max_archive=None, **kwargs):
         self.neighbors = neighbors
         self.decomposition = decomposition
         self.theta = theta
         self.crossover = crossover
         self.mutation = mutation
+        self.space = space
+        self.operators = operators
         self.batch = batch
         self.max_archive = max_archive
         super().__init__(**kwargs)
@@ -124,10 +133,10 @@ class MOEAD(Algorithm):
         check(self.decomposition in DECOMPOSITIONS, f"decomposition must be one of {DECOMPOSITIONS}")
         check(is_real(self.theta, 0), "theta must be non negative")
         check(isinstance(self.batch, bool), "batch must be True or False")
-        check_operator(self.crossover, "crossover", "encoded")
-        check_operator(self.mutation, "mutation", "encoded")
+        check_space(self)
 
     def check_problem(self, problem):
+        check_space(self, problem)
         m = problem.n_obj
         check(self.pop_size >= m, f"MOEA/D needs a pop_size of at least the number of objectives ({m})")
 
@@ -139,8 +148,12 @@ class MOEAD(Algorithm):
         t = min(self.neighbors, n)
         dist = np.linalg.norm(self.weights[:, None] - self.weights[None], axis=-1)
         self.neighborhood = np.argsort(dist, axis=1, kind="stable")[:, :t]
-        self._crossover = self.crossover or SBX(prob=1.0)
-        self._mutation = self.mutation or PolynomialMutation()
+        if self.space == "native":
+            self._crossover, self._mutation = native_variation(self.problem, self.operators, self.crossover,
+                                                               self.mutation, SBX(prob=1.0), PolynomialMutation())
+        else:
+            self._crossover = self.crossover or SBX(prob=1.0)
+            self._mutation = self.mutation or PolynomialMutation()
         self.pop = self.random_population(n)
         self.ideal = np.min(self._minimized(self.pop.F), axis=0)
 

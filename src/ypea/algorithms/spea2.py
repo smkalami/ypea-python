@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from ..algorithm import Algorithm, check, is_int
-from ..operators import SBX, PolynomialMutation, check_operator
+from ..operators import SBX, PolynomialMutation, check_space, native_variation
 from ..population import Population
 
 
@@ -89,6 +89,13 @@ class SPEA2(Algorithm):
     mutation : ypea.operators.Mutation or None. The default (None) is polynomial mutation,
         ``PolynomialMutation()`` (index 20 and rate 1/n, the NSGA-II settings, because the
         report gives none).
+    space : "encoded" (the default) applies ``crossover`` and ``mutation`` to the [0, 1]
+        codes. "native" decodes each variable and applies its native operators, as GA does
+        (permutation crossovers and moves, integer and selection operators, see the guide
+        Native operators). Real variables keep SBX and polynomial mutation, so a problem
+        with only Real variables runs exactly as with "encoded".
+    operators : dict or None
+        Native operators per variable name, as in GA (needs ``space="native"``).
     max_archive : int or None
         The largest size of the front (``Result.front``). None (the default) keeps every
         non-dominated solution found. This is not the algorithm's own archive, which is
@@ -107,10 +114,13 @@ class SPEA2(Algorithm):
     short_name = "SPEA2"
     objectives = "multi"
 
-    def __init__(self, *, archive_size=None, crossover=None, mutation=None, max_archive=None, **kwargs):
+    def __init__(self, *, archive_size=None, crossover=None, mutation=None, space="encoded", operators=None,
+                 max_archive=None, **kwargs):
         self.archive_size = archive_size
         self.crossover = crossover
         self.mutation = mutation
+        self.space = space
+        self.operators = operators
         self.max_archive = max_archive
         super().__init__(**kwargs)
 
@@ -118,12 +128,18 @@ class SPEA2(Algorithm):
         super().validate()
         check(self.archive_size is None or is_int(self.archive_size, 1),
               "archive_size must be a positive integer or None")
-        check_operator(self.crossover, "crossover", "encoded")
-        check_operator(self.mutation, "mutation", "encoded")
+        check_space(self)
+
+    def check_problem(self, problem):
+        check_space(self, problem)
 
     def initialize(self):
-        self._crossover = self.crossover or SBX()
-        self._mutation = self.mutation or PolynomialMutation()
+        if self.space == "native":
+            self._crossover, self._mutation = native_variation(self.problem, self.operators, self.crossover,
+                                                               self.mutation, SBX(), PolynomialMutation())
+        else:
+            self._crossover = self.crossover or SBX()
+            self._mutation = self.mutation or PolynomialMutation()
         self.pop = self.random_population()
         self.archive, self.fitness = self._select(self.pop)
 

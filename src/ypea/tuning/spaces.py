@@ -144,7 +144,9 @@ def _space(params, pop=None, pop_reason=_AUTO_POP, **fixed):
 
 _MO_FIXED = {"crossover": "operator objects are chosen by the user, not sampled",
              "mutation": "operator objects are chosen by the user, not sampled",
-             "max_archive": "the size of the front is chosen by the user"}
+             "max_archive": "the size of the front is chosen by the user",
+             "space": "the choice of search space (codes or native operators) is a modeling decision",
+             "operators": "user supplied operator objects cannot be sampled"}
 
 
 SPACES = {
@@ -314,6 +316,8 @@ SPACES = {
     }, integer(20, 200, valid=(1, None)),
         crossover="operator objects are chosen by the user, not sampled",
         mutation="operator objects are chosen by the user, not sampled",
+        space="the choice of search space (codes or native operators) is a modeling decision",
+        operators="user supplied operator objects cannot be sampled",
         batch="evaluating one child at a time or a whole generation is a choice of how to run the objective",
         max_archive="the size of the front is chosen by the user"),
     alg.MOPSO: _space({
@@ -327,6 +331,8 @@ SPACES = {
         archive_size="defaults to the population size, as in the paper",
         crossover="operator objects are chosen by the user, not sampled",
         mutation="operator objects are chosen by the user, not sampled",
+        space="the choice of search space (codes or native operators) is a modeling decision",
+        operators="user supplied operator objects cannot be sampled",
         max_archive="the size of the front is chosen by the user"),
 }
 

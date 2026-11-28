@@ -124,6 +124,8 @@ The hypervolume is exact for up to three objectives. For four or more it is a Mo
 
 An empty set gives inf for the distance indicators and 0 for the hypervolume.
 
+The indicators assume every objective is minimized. For a maximized objective, multiply its column of the points, the front sample and the reference point by -1 first. The experiment runner does this for you, using the senses of the problem.
+
 <figure markdown="span">
   ![Hypervolume and IGD of a small front](../assets/figures/indicators.svg)
   <figcaption>Two views of the same eight points. The hypervolume is the area they dominate up to the reference point (larger is better). IGD is the mean distance from the true front to the nearest point found (smaller is better).</figcaption>

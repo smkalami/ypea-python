@@ -285,6 +285,12 @@ def test_several_objectives_follow_the_senses_and_keep_single_objective_keys(tmp
                      info={"pareto_front": -p.info["pareto_front"]})
     a, b = (run([x], tmp_path / str(i)).records("RS", p.name)[0] for i, x in enumerate((p, q)))
     assert a["indicators"] == b["indicators"] and a["checkpoints"]["hypervolume"] == b["checkpoints"]["hypervolume"]
+    # mixed senses: only the second objective is maximized
+    flip = np.array([1.0, -1.0])
+    mixed = ypea.Problem(p.vars, lambda sol: p.objective(sol) * flip, vectorized=True, sense=["min", "max"],
+                         n_obj=2, name=p.name, info={"pareto_front": p.info["pareto_front"] * flip})
+    c = run([mixed], tmp_path / "mixed").records("RS", p.name)[0]
+    assert a["indicators"] == c["indicators"] and a["checkpoints"]["igd"] == c["checkpoints"]["igd"]
     # single objective runs have no indicators, and their keys do not mention them
     rec = run(make_problems()[:1], tmp_path / "s").records("RS", "sphere3")[0]
     assert "indicators" not in rec and "indicators" not in rec["settings"]

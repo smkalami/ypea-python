@@ -148,7 +148,7 @@ print(len(run.result().front))
 
 ## Operators for multi-objective algorithms
 
-The multi-objective genetic algorithms use simulated binary crossover and polynomial mutation (Deb et al. 2002) by default. Both are in `ypea.operators` as `SBX` and `PolynomialMutation`, and work on the [0, 1] codes, so they apply to every variable type. See [Native operators](operators.md#operators-as-settings).
+The multi-objective genetic algorithms use simulated binary crossover and polynomial mutation (Deb et al. 2002) by default. Both are in `ypea.operators` as `SBX` and `PolynomialMutation`, and work on the [0, 1] codes, so they apply to every variable type. See [Native operators](operators.md#operators-as-settings). With `space="native"`, permutation, integer, selection and partition variables get operators made for their type, and real variables keep these two (see [Several objectives](operators.md#several-objectives)).
 
 <figure markdown="span">
   ![Distributions of SBX children and mutants](../assets/figures/operators.svg)

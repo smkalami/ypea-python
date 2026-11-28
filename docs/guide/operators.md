@@ -1,8 +1,8 @@
-# Native operators for GA and SA
+# Native operators
 
 By default every algorithm works on the [0, 1] codes of the variables. This works for every variable type, but for some types an operator made for the type works better: a crossover of two tours should give a tour that keeps parts of both parents.
 
-GA and SA have a setting `space`. With `space="native"` they decode each variable, apply its native operators, and encode the children back:
+GA, SA, NSGA-II, NSGA-III, SPEA2 and MOEA/D have a setting `space`. With `space="native"` they decode each variable, apply its native operators, and encode the children back:
 
 ```python
 import ypea
@@ -16,6 +16,35 @@ for space in ("encoded", "native"):
 ```text
 encoded  741.35
 native   545.90
+```
+
+## Several objectives
+
+NSGA-II, NSGA-III, SPEA2 and MOEA/D use the same native operators for every type except `Real`, which keeps the paper's simulated binary crossover and polynomial mutation on its codes. So a problem with only real variables runs exactly as with `space="encoded"`, and a problem with tours, selections or integers gets operators made for them. On a traveling salesman problem with two distance matrices, the native space finds shorter tours with a long enough budget:
+
+```python
+import numpy as np
+import ypea
+
+rng = np.random.default_rng(5)
+d = [np.linalg.norm(c[:, None] - c[None], axis=-1) for c in rng.random((2, 30, 2)) * 100]
+
+
+def lengths(sol):
+    t = sol.tour
+    nxt = np.roll(t, -1, axis=-1)
+    return np.stack([d[0][t, nxt].sum(-1), d[1][t, nxt].sum(-1)], axis=-1)
+
+
+tours = ypea.Problem(ypea.Permutation("tour", 30), lengths, vectorized=True, n_obj=2)
+for space in ("encoded", "native"):
+    front = ypea.NSGAII(max_nfe=40_000, space=space).solve(tours, seed=0).front.obj_values
+    print(f"{space:8s} shortest tours {front.min(axis=0).round(1)}")
+```
+
+```text
+encoded  shortest tours [716.5 745. ]
+native   shortest tours [569.8 624.2]
 ```
 
 ## Default operators

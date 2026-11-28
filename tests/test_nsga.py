@@ -197,7 +197,7 @@ def test_default_operators_follow_the_papers(cls):
 
 @pytest.mark.parametrize("cls", ALGS)
 def test_settings_are_checked(cls):
-    with pytest.raises(ValueError, match="code operator"):
+    with pytest.raises(ValueError, match="needs space=.native."):
         cls(mutation=ypea.operators.NativeMutation(lambda x, rng: x, types=ypea.Integer))
     with pytest.raises(TypeError, match="crossover"):
         cls(crossover=ypea.operators.PolynomialMutation())

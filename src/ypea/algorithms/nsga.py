@@ -8,7 +8,7 @@ import numpy as np
 
 from ..algorithm import Algorithm, check, is_int
 from ..benchmarks.multi import das_dennis
-from ..operators import SBX, Operator, PolynomialMutation, check_operator
+from ..operators import SBX, PolynomialMutation, check_space, native_variation
 from ..population import Population
 
 
@@ -162,18 +162,24 @@ class NSGAII(Algorithm):
     ----------
     pop_size : population size N (default 100). Each iteration makes N children.
     crossover : ypea.operators.Crossover or None
-        A crossover on the [0, 1] codes, called as ``op(x1, x2, rng)``. None (the default)
-        is simulated binary crossover with the paper's settings, ``SBX(eta=20, prob=0.9)``.
+        A crossover on the [0, 1] codes, called as ``op(x1, x2, rng)``, or a native one with
+        ``space="native"``. None (the default) is simulated binary crossover with the
+        paper's settings, ``SBX(eta=20, prob=0.9)``.
     mutation : ypea.operators.Mutation or None
-        A mutation on the [0, 1] codes, called as ``op(x, rng)``. None (the default) is
-        polynomial mutation with the paper's settings, ``PolynomialMutation(eta=20)``, which
-        changes each of the n codes with probability 1/n.
+        A mutation on the [0, 1] codes, called as ``op(x, rng)``, or a native one with
+        ``space="native"``. None (the default) is polynomial mutation with the paper's
+        settings, ``PolynomialMutation(eta=20)``, which changes each of the n codes with
+        probability 1/n.
+    space : "encoded" (the default) applies ``crossover`` and ``mutation`` to the [0, 1]
+        codes. "native" decodes each variable and applies its native operators, as GA does
+        (permutation crossovers and moves, integer and selection operators, see the guide
+        Native operators). Real variables keep SBX and polynomial mutation, so a problem
+        with only Real variables runs exactly as with "encoded".
+    operators : dict or None
+        Native operators per variable name, as in GA (needs ``space="native"``).
     max_archive : int or None
         The largest size of the front kept in the result (see ``RandomSearch``). None (the
         default) keeps every non-dominated solution found.
-
-    The operators work on the codes, so every variable type can be used. Native operators
-    (``NativeCrossover``, ``NativeMutation``) are not supported.
 
     Differences from the paper: the initial population also gets crowding distances, so
     the first tournaments use them too (the paper ranks it by front only). A tournament
@@ -188,9 +194,12 @@ class NSGAII(Algorithm):
     short_name = "NSGA-II"
     objectives = "multi"
 
-    def __init__(self, *, crossover=None, mutation=None, max_archive=None, **kwargs):
+    def __init__(self, *, crossover=None, mutation=None, space="encoded", operators=None, max_archive=None,
+                 **kwargs):
         self.crossover = crossover
         self.mutation = mutation
+        self.space = space
+        self.operators = operators
         self.max_archive = max_archive
         super().__init__(**kwargs)
 
@@ -200,20 +209,18 @@ class NSGAII(Algorithm):
 
     def validate(self):
         super().validate()
-        for op, kind in ((self.crossover, "crossover"), (self.mutation, "mutation")):
-            check(not (isinstance(op, Operator) and op.space != "code"),
-                  f"{self.short_name} works on the [0, 1] codes, so {kind} must be a code operator "
-                  "such as SBX() or PolynomialMutation()")
-            check_operator(op, kind, "encoded")
+        check_space(self)
 
     def check_problem(self, problem):
-        check_operator(self.crossover, "crossover", "encoded", problem)
-        check_operator(self.mutation, "mutation", "encoded", problem)
+        check_space(self, problem)
 
     def initialize(self):
         cx, mut = self.default_operators()
-        self._cx = self.crossover or cx
-        self._mut = self.mutation or mut
+        if self.space == "native":
+            self._cx, self._mut = native_variation(self.problem, self.operators, self.crossover, self.mutation,
+                                                   cx, mut)
+        else:
+            self._cx, self._mut = self.crossover or cx, self.mutation or mut
         self._n = self.population_size()
         self.pop = self.random_population(self._n)
         self._rank, self._crowd = self._rank_and_crowd(self.pop)

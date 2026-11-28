@@ -5,7 +5,8 @@
 ``NativeCrossover`` and ``NativeMutation`` for native values. Each one declares its
 ``space``, and the algorithm checks that it fits before the run.
 
-The rest of this module holds the native operators of GA and SA.
+The rest of this module holds the native operators of GA, SA and, for all types but Real,
+NSGA-II, NSGA-III, SPEA2 and MOEA/D.
 
 A native operator works on decoded values of one variable: a batch of shape (n, *shape).
 A crossover takes two parent batches and returns two child batches. A mutation takes one
@@ -354,14 +355,15 @@ class NativeOperators:
     list), otherwise the defaults, otherwise the algorithm's code operators on that
     variable's slice of the codes."""
 
-    def __init__(self, problem, operators=None, *, crossover=None, mutation=None, **params):
+    def __init__(self, problem, operators=None, *, crossover=None, mutation=None, code_types=(), **params):
         operators = dict(operators or {})
         unknown = set(operators) - {v.name for v in problem.vars}
         if unknown:
             raise ValueError(f"operators given for unknown variables: {sorted(unknown)}")
         self.vars = problem.vars
         self.slices = list(pairwise(np.cumsum([0, *(v.code_size for v in problem.vars)])))
-        self.defaults = [default_operators(v, **params) for v in self.vars]
+        # types in code_types keep the algorithm's code operators unless the user gives native ones
+        self.defaults = [None if type(v) in code_types else default_operators(v, **params) for v in self.vars]
         self.user = [_user(operators.get(v.name)) for v in self.vars]
         self.native = {"crossover": crossover, "mutate": mutation}
 
@@ -400,3 +402,34 @@ class NativeOperators:
             for o, y in zip(out, ys, strict=True):
                 o[rows, a:b] = y
         return out
+
+
+def native_variation(problem, operators, crossover, mutation, code_crossover, code_mutation):
+    """Crossover and mutation on whole code batches for ``space="native"`` in the algorithms
+    whose paper operators are SBX and polynomial mutation (NSGA-II, NSGA-III, SPEA2, MOEA/D).
+
+    Each variable gets its user operators, then the native ``crossover`` and ``mutation``,
+    then its native defaults. Real variables (and types without native operators) keep
+    ``code_crossover`` and ``code_mutation`` on their slice of the codes, so a problem with
+    only Real variables gives exactly the run of ``space="encoded"``.
+    """
+    ops = NativeOperators(problem, operators, crossover=crossover, mutation=mutation, code_types=(Real,))
+
+    def cross(x1, x2, rng):
+        return tuple(ops.apply("crossover", [x1, x2], rng, lambda a, b: code_crossover(a, b, rng)))
+
+    def mutate(x, rng):
+        return ops.apply("mutate", [x], rng, lambda a: (code_mutation(a, rng),))[0]
+    return cross, mutate
+
+
+def check_space(alg, problem=None):
+    """Check the ``space``, ``operators``, ``crossover`` and ``mutation`` settings of ``alg``."""
+    if alg.space not in ("encoded", "native"):
+        raise ValueError("space must be 'encoded' or 'native'")
+    if not (alg.operators is None or isinstance(alg.operators, dict)):
+        raise ValueError("operators must be a dict of variable name to operators, or None")
+    if alg.operators and alg.space != "native":
+        raise ValueError("operators need space='native'")
+    check_operator(alg.crossover, "crossover", alg.space, problem)
+    check_operator(alg.mutation, "mutation", alg.space, problem)
