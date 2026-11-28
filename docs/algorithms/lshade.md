@@ -20,3 +20,10 @@ alg = ypea.LSHADE(max_nfe=20_000)
 result = alg.solve(problem, seed=1)
 print(result.summary())
 ```
+
+## How it searches
+
+<figure markdown="span">
+  ![L-SHADE solutions on Rastrigin at four iterations, and its convergence](../assets/figures/algorithm-lshade.png)
+  <figcaption>The current solutions of L-SHADE with default settings on the Rastrigin function in two dimensions (seed 1), after 1, 5, 20 and 50 iterations. The cross marks the global minimum. The right panel shows the error of the best solution against the evaluations.</figcaption>
+</figure>

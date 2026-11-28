@@ -60,6 +60,34 @@ DE on sphere
   evaluations: 20000, iterations: 199, time: 0.0942 s, stopped by: max_nfe
 ```
 
+## How it fits together
+
+```mermaid
+flowchart TB
+    P["Problem: variables, objective, sense, constraints"] --> A["Algorithm: GA, PSO, DE, CMA-ES, NSGA-II, ..."]
+    A -- "codes in [0, 1]" --> E["Evaluator: decodes, evaluates, counts, keeps the best"]
+    E -- "values and violations" --> A
+    C["Comparator: min or max, constraint rules, Pareto dominance"] -.- A
+    E --> R["Result: best, front, history"]
+    R --> X["Plots, experiments, statistics, tuning"]
+```
+
+You describe the problem once with variables and an objective. The algorithm searches codes in [0, 1] and never sees your variable types. The evaluator decodes each code, calls your objective, counts the evaluations and keeps the best solution (or the front) exactly. Every comparison of two solutions goes through the comparator, which alone knows whether you minimize or maximize and how constraints count.
+
+The package is organized the same way:
+
+```mermaid
+flowchart LR
+    Y["ypea<br>Problem, variables,<br>Result, plot"]
+    Y --> AL["algorithms: 26 algorithms"]
+    Y --> OP["operators: crossover, mutation"]
+    Y --> BE["benchmarks: classic, CEC, ZDT, DTLZ, WFG"]
+    Y --> PR["problems: engineering, combinatorial, allocation"]
+    Y --> IN["indicators: GD, IGD, hypervolume"]
+    Y --> EX["experiment: runs, tables, tests, reports"]
+    Y --> TU["tuning: iterated racing, sweeps"]
+```
+
 Start with [Getting started](getting-started.md), then read the [user guide](guide/problems.md) or pick an [algorithm](algorithms/index.md).
 
 ## Citing

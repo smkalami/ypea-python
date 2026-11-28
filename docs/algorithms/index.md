@@ -6,6 +6,11 @@ For the common settings, the stopping rules, seeds and choosing an algorithm, se
 
 In the table, n is the number of codes of the problem (the number of real variables for a continuous problem).
 
+<figure markdown="span">
+  ![Convergence of six algorithms on Rastrigin](../assets/figures/convergence-many.svg)
+  <figcaption>Six algorithms with default settings on Rastrigin in 10 dimensions (20 000 evaluations, seed 1). One run says little, so compare algorithms with the experiment runner.</figcaption>
+</figure>
+
 ## From YPEA for MATLAB
 
 The 15 algorithms of YPEA for MATLAB, with their known defects fixed. [Differences from YPEA for MATLAB](../differences-from-matlab.md) lists every change.

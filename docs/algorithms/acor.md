@@ -18,3 +18,10 @@ alg = ypea.ACOR(max_iter=200, pop_size=10, sample_count=50, q=0.5, zeta=1)
 result = alg.solve(problem, seed=1)
 print(result.summary())
 ```
+
+## How it searches
+
+<figure markdown="span">
+  ![ACOR solutions on Rastrigin at four iterations, and its convergence](../assets/figures/algorithm-acor.png)
+  <figcaption>The current solutions of ACOR with default settings on the Rastrigin function in two dimensions (seed 1), after 1, 5, 20 and 50 iterations. The cross marks the global minimum. The right panel shows the error of the best solution against the evaluations.</figcaption>
+</figure>

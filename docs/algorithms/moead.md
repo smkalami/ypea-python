@@ -29,3 +29,10 @@ result = ypea.MOEAD(max_nfe=10_000, batch=True).solve(problem, seed=1)
 ```
 
 This variant is not in the paper. Its children cannot use the improvements made earlier in the same iteration, so it may need a few more evaluations for the same quality. On ZDT1 and DTLZ2 with 10 000 evaluations, both modes reach a similar IGD. The default results do not change.
+
+## How it searches
+
+<figure markdown="span">
+  ![Front found by MOEA/D on ZDT1](../assets/figures/algorithm-moead.png)
+  <figcaption>The front of MOEA/D with default settings on ZDT1 with 10 variables after 10 000 evaluations (seed 1), with the true front in gray.</figcaption>
+</figure>

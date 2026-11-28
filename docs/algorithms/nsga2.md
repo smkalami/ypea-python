@@ -20,3 +20,10 @@ print(len(result.front), igd(result.front.obj_values, pareto_front("zdt1", 1000)
 ```
 
 Other operators from `ypea.operators` replace the defaults, for example `ypea.NSGAII(crossover=ypea.operators.SBX(eta=15))`.
+
+## How it searches
+
+<figure markdown="span">
+  ![Front found by NSGA-II on ZDT1](../assets/figures/algorithm-nsga2.png)
+  <figcaption>The front of NSGA-II with default settings on ZDT1 with 10 variables after 10 000 evaluations (seed 1), with the true front in gray.</figcaption>
+</figure>

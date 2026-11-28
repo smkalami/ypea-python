@@ -118,6 +118,11 @@ path = report.save_html()  # results/cec2017/report.html
 
 The figures are sized for one column of a paper (3.5 by 2.6 inches, 8 point text) and can be saved as PDF, PNG or SVG. `save_html` writes one self contained page with the settings, the algorithms, the table and every figure.
 
+<figure markdown="span">
+  ![Convergence band, box plot and rank bars of a small experiment](../assets/figures/experiment.svg)
+  <figcaption>The three report figures for a small experiment (DE, PSO and CMA-ES with default settings, shifted Rastrigin and Rosenbrock in 10 dimensions, 10 runs of 10 000 evaluations): <code>plot_convergence</code>, <code>plot_box</code> and <code>plot_ranks</code>.</figcaption>
+</figure>
+
 ## Parameter sweeps
 
 `Experiment.sweep` runs one algorithm with several settings, every combination of the given values:

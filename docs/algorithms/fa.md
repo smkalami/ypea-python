@@ -19,3 +19,10 @@ alg = ypea.FA(max_iter=1000, pop_size=10, gamma=1, beta_base=2, alpha=0.2, alpha
 result = alg.solve(problem, seed=1)
 print(result.summary())
 ```
+
+## How it searches
+
+<figure markdown="span">
+  ![FA solutions on Rastrigin at four iterations, and its convergence](../assets/figures/algorithm-fa.png)
+  <figcaption>The current solutions of FA with default settings on the Rastrigin function in two dimensions (seed 1), after 1, 5, 20 and 50 iterations. The cross marks the global minimum. The right panel shows the error of the best solution against the evaluations.</figcaption>
+</figure>

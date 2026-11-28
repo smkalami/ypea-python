@@ -24,6 +24,23 @@ print(result.nfe, result.stop_reason)
 
 `result()` gives the same `Result` as `solve`. Told the true objective values, an ask and tell run gives exactly the result of `solve` with the same seed, for every algorithm and also with `ypea.StudioRng`.
 
+```mermaid
+sequenceDiagram
+    participant You
+    participant Run as ask_tell run
+    participant Alg as Algorithm (background thread)
+    You->>Run: ask()
+    Run->>Alg: next batch?
+    Alg-->>Run: solutions to evaluate
+    Run-->>You: decoded solutions
+    Note over You: evaluate them anywhere
+    You->>Run: tell(values)
+    Run->>Alg: values
+    Note over Alg: update the best, iterate
+    You->>Run: result()
+    Run-->>You: Result
+```
+
 ## What ask gives and tell takes
 
 `ask()` returns the next batch in the form the objective would get it: a list of `Solution` objects, or for a vectorized problem one `Solution` whose attributes have a leading batch axis. The codes of the batch, with shape (n, code_size), are in `run.codes`.

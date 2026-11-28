@@ -26,6 +26,18 @@ A race compares several settings on a stream of instances. An instance is one pr
 
 Iterated racing repeats this. The first race starts from settings drawn at random from the parameter space. The survivors (the elites) go on to the next race with all their results. New settings are drawn near the elites: a better elite is chosen as a parent more often, numbers come from a normal distribution around the parent's value that gets narrower each iteration, and categories lean more and more toward the parent's choice. Elites cannot be dropped before the new settings have seen the same instances. The tuning ends when the budget (the total number of runs) is used.
 
+```mermaid
+flowchart TB
+    D["draw settings<br>from the space"] --> R["race on instances<br>(problem, seed)"]
+    R --> F{"Friedman test<br>after first_test<br>instances"}
+    F -- "clearly worse" --> X["drop"]
+    F -- "still in" --> R
+    R --> E["elites"]
+    E --> N["draw new settings<br>near the elites"]
+    N --> R
+    E --> B["best setting<br>when the budget is used"]
+```
+
 ## Example
 
 ```python

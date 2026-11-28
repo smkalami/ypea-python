@@ -20,3 +20,10 @@ alg = ypea.ICA(max_iter=1000, pop_size=100, empire_count=10, selection_pressure=
 result = alg.solve(problem, seed=1)
 print(result.summary())
 ```
+
+## How it searches
+
+<figure markdown="span">
+  ![ICA solutions on Rastrigin at four iterations, and its convergence](../assets/figures/algorithm-ica.png)
+  <figcaption>The current solutions of ICA with default settings on the Rastrigin function in two dimensions (seed 1), after 1, 5, 20 and 50 iterations. The cross marks the global minimum. The right panel shows the error of the best solution against the evaluations.</figcaption>
+</figure>

@@ -20,3 +20,10 @@ alg = ypea.PSO(max_iter=100, pop_size=100, w=0.5, wdamp=1, c1=1, c2=2)
 result = alg.solve(problem, seed=1)
 print(result.summary())
 ```
+
+## How it searches
+
+<figure markdown="span">
+  ![PSO solutions on Rastrigin at four iterations, and its convergence](../assets/figures/algorithm-pso.png)
+  <figcaption>The current solutions of PSO with default settings on the Rastrigin function in two dimensions (seed 1), after 1, 5, 20 and 50 iterations. The cross marks the global minimum. The right panel shows the error of the best solution against the evaluations.</figcaption>
+</figure>

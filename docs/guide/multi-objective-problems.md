@@ -88,6 +88,11 @@ front = pareto_front("dtlz2", 1000, m=3)
 !!! note "WFG1 at the optimum"
     WFG1 raises its distance values to the power 0.02, so a rounding error of 1e-16 at the optimal distance parameters x_i = 0.7 i becomes 0.48. The linear shift of all WFG problems sets values below 1e-12 to 0, so these solutions reach the front. Other implementations differ here: in pymoo 0.6.2 (with k = 4 and 20 distance parameters) the sampled WFG1 front lies 0.07 above the true front in every objective.
 
+<figure markdown="span">
+  ![True Pareto fronts of ZDT and DTLZ problems](../assets/figures/pareto-fronts.png)
+  <figcaption>Samples of the true fronts from <code>pareto_front</code>: five ZDT problems with two objectives and three DTLZ problems with three.</figcaption>
+</figure>
+
 ## Indicators
 
 `ypea.indicators` compares a set of objective vectors `points` (shape (n, m)) with a sample `front` of the true front:
@@ -118,6 +123,11 @@ IGD measures both convergence and spread, so it needs a dense, even sample of th
 The hypervolume is exact for up to three objectives. For four or more it is a Monte Carlo estimate from `n_samples` points (default one million) drawn with `seed`, so the same seed gives the same value. Points that do not dominate the reference point add nothing. A common reference point is 1.1 times the nadir point of the true front, for example (1.1, 1.1, 1.1) for DTLZ2 with three objectives.
 
 An empty set gives inf for the distance indicators and 0 for the hypervolume.
+
+<figure markdown="span">
+  ![Hypervolume and IGD of a small front](../assets/figures/indicators.svg)
+  <figcaption>Two views of the same eight points. The hypervolume is the area they dominate up to the reference point (larger is better). IGD is the mean distance from the true front to the nearest point found (smaller is better).</figcaption>
+</figure>
 
 ## Plots
 

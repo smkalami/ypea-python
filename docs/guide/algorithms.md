@@ -25,6 +25,20 @@ No algorithm is best on every problem, so compare a few on your problem with an 
 - **Several objectives:** NSGA-II for two or three objectives, NSGA-III for three or more (see [Multiple objectives](multi-objective.md)).
 - **A baseline:** every method should beat Random Search with the same budget.
 
+## How a run works
+
+```mermaid
+flowchart TB
+    S["solve(problem, seed)"] --> I["initialize: create and evaluate<br>the first solutions"]
+    I --> T{"stopping rule met?<br>max_iter, max_nfe, target,<br>max_time, callback"}
+    T -- no --> IT["iterate: create new solutions,<br>evaluate them, select"]
+    IT --> CB["callbacks"]
+    CB --> T
+    T -- yes --> R["Result"]
+```
+
+Every algorithm runs this loop. The evaluator counts every evaluation and never goes past `max_nfe`, and it updates the best solution after each evaluation, so the result does not depend on where in an iteration the budget ends.
+
 ## Common settings
 
 Every algorithm accepts these keyword arguments, next to its own settings:

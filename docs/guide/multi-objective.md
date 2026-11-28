@@ -92,6 +92,11 @@ Rows past the `max_nfe` budget are never evaluated and never enter the front.
 
 **Limiting the size.** The front grows without limit by default. An algorithm that supports several objectives takes `max_archive`, for example `ypea.RandomSearch(max_archive=100)`. When the front grows larger, the member with the smallest crowding distance (the most crowded one) is removed, the distances are computed again, and so on until the front fits. The extreme solutions of each objective have an infinite distance, so they stay. The front is trimmed after each batch of evaluations.
 
+<figure markdown="span">
+  ![Front found by NSGA-II on ZDT1](../assets/figures/front.svg)
+  <figcaption>The front of NSGA-II with default settings on ZDT1 (30 variables) after 20 000 evaluations, with the true front in gray, drawn with <code>ypea.plot.front</code>.</figcaption>
+</figure>
+
 ## History and trace
 
 `result.history` keeps one entry per iteration, with `archive_size` (the size of the front) and `best_violation` (the smallest violation in the front). `best_obj_value` is NaN.
@@ -144,3 +149,8 @@ print(len(run.result().front))
 ## Operators for multi-objective algorithms
 
 The multi-objective genetic algorithms use simulated binary crossover and polynomial mutation (Deb et al. 2002) by default. Both are in `ypea.operators` as `SBX` and `PolynomialMutation`, and work on the [0, 1] codes, so they apply to every variable type. See [Native operators](operators.md#operators-as-settings).
+
+<figure markdown="span">
+  ![Distributions of SBX children and mutants](../assets/figures/operators.svg)
+  <figcaption>Where the children of SBX (left) and the mutants of polynomial mutation (right) land, from 20 000 draws. A larger eta keeps them closer to the parents.</figcaption>
+</figure>

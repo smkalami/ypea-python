@@ -56,6 +56,11 @@ print(result.best.obj_value, result.best.solution.q)
 
 `plot_tour(problem, result)` draws the best tour of a TSP with coordinates (needs matplotlib).
 
+<figure markdown="span">
+  ![A random tour and the tour found by GA on a 50 city TSP](../assets/figures/tsp.svg)
+  <figcaption><code>random_tsp(50, seed=2)</code>: a random tour (left) and the tour found by <code>GA(max_nfe=50_000, space="native")</code> with seed 1 (right), drawn with <code>plot_tour</code>.</figcaption>
+</figure>
+
 ## Allocation and assignment
 
 | Function | Variables | Notes |

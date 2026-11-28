@@ -18,3 +18,10 @@ alg = ypea.CA(max_iter=100, pop_size=50, influence_type=3, accept_rate=0.2, alph
 result = alg.solve(problem, seed=1)
 print(result.summary())
 ```
+
+## How it searches
+
+<figure markdown="span">
+  ![CA solutions on Rastrigin at four iterations, and its convergence](../assets/figures/algorithm-ca.png)
+  <figcaption>The current solutions of CA with default settings on the Rastrigin function in two dimensions (seed 1), after 1, 5, 20 and 50 iterations. The cross marks the global minimum. The right panel shows the error of the best solution against the evaluations.</figcaption>
+</figure>

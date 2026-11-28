@@ -24,6 +24,13 @@ pytest
 
 Every optimization in YPEA has the same three steps: define the problem, choose an algorithm, and call `solve`.
 
+```mermaid
+flowchart LR
+    A["1. Problem<br>variables and objective"] --> B["2. Algorithm<br>settings and stopping rule"]
+    B --> C["3. solve(problem, seed)"]
+    C --> D["Result<br>best solution, history"]
+```
+
 **1. Define the problem.** A problem has decision variables and an objective function. The objective gets a decoded solution, with one attribute per variable, and returns a number.
 
 ```python
@@ -135,6 +142,11 @@ With matplotlib installed:
 ax = ypea.plot.convergence(result)
 ax.figure.savefig("convergence.png")
 ```
+
+<figure markdown="span">
+  ![Convergence and best tour of the TSP example](assets/figures/getting-started-tsp.svg)
+  <figcaption>The TSP example above: the best tour length against the evaluations (left) and the optimal tour (right).</figcaption>
+</figure>
 
 ## Examples
 

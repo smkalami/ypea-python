@@ -33,6 +33,11 @@ problem = ypea.Problem(
 
 Every variable is stored as a block of numbers in [0, 1], called codes or random keys. The algorithms only see the codes, so every algorithm works with every variable type. A variable knows how many codes it needs (`code_size`), how to turn codes into values (`decode`) and how to turn values back into codes (`encode`).
 
+<figure markdown="span">
+  ![Codes in [0, 1] and their decoded values for each variable type](../assets/figures/encoding.svg)
+  <figcaption>Each variable type turns its block of codes into a value. A permutation sorts its codes, a selection takes the first k of that order, a partition splits the order at its separator codes, and a fixed sum scales the codes to the target.</figcaption>
+</figure>
+
 `decode` works on batches: codes of shape (n, code_size) give values of shape (n, *shape). Indices in permutations, selections and partitions start at 0.
 
 The examples below decode the same five codes with each type:

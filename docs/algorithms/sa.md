@@ -20,3 +20,10 @@ alg = ypea.SA(max_iter=100, pop_size=5, max_sub_iter=10, move_count=15)
 result = alg.solve(problem, seed=1)
 print(result.summary())
 ```
+
+## How it searches
+
+<figure markdown="span">
+  ![SA solutions on Rastrigin at four iterations, and its convergence](../assets/figures/algorithm-sa.png)
+  <figcaption>The current solutions of SA with default settings on the Rastrigin function in two dimensions (seed 1), after 1, 5, 20 and 50 iterations. The cross marks the global minimum. The right panel shows the error of the best solution against the evaluations.</figcaption>
+</figure>

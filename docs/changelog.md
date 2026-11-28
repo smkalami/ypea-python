@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Docs:** figures and diagrams throughout: how the library fits together, how each variable type decodes its codes, the run loop, the constraint rules, ask and tell, the tuning race, benchmark functions, test problem solutions, Pareto fronts, indicators, operators, experiment reports, and a figure of how each algorithm searches. `docs/figures/make_figures.py` makes every figure from seeded runs.
+
 ## 0.7.0 (2026-11-27)
 
 - **MOPSO inertia (seeded MOPSO results change once):** the default `w` is now 0.7 (before 0.4, the paper's value). On 21 ZDT, DTLZ and WFG problems (15 runs, 25 000 evaluations), 0.7 had 13 wins, 2 ties and 6 losses in IGD and 12 wins, 4 ties and 5 losses in hypervolume. `MOPSO(w=0.4)` gives the paper's setting.

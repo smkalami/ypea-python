@@ -18,3 +18,10 @@ alg = ypea.DE(max_iter=1000, pop_size=20, beta_min=0.1, beta_max=0.9, crossover_
 result = alg.solve(problem, seed=1)
 print(result.summary())
 ```
+
+## How it searches
+
+<figure markdown="span">
+  ![DE solutions on Rastrigin at four iterations, and its convergence](../assets/figures/algorithm-de.png)
+  <figcaption>The current solutions of DE with default settings on the Rastrigin function in two dimensions (seed 1), after 1, 5, 20 and 50 iterations. The cross marks the global minimum. The right panel shows the error of the best solution against the evaluations.</figcaption>
+</figure>

@@ -19,3 +19,10 @@ problem = ypea.Problem(ypea.Real("x", shape=30, lb=0, ub=1), lambda sol: zdt1(so
 result = ypea.MOPSO(max_nfe=10_000).solve(problem, seed=1)
 print(len(result.front), igd(result.front.obj_values, pareto_front("zdt1", 500)))
 ```
+
+## How it searches
+
+<figure markdown="span">
+  ![Front found by MOPSO on ZDT1](../assets/figures/algorithm-mopso.png)
+  <figcaption>The front of MOPSO with default settings on ZDT1 with 10 variables after 10 000 evaluations (seed 1), with the true front in gray.</figcaption>
+</figure>

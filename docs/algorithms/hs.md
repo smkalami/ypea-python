@@ -19,3 +19,10 @@ alg = ypea.HS(max_iter=1000, pop_size=20, new_count=40, hmcr=0.95, par=0.1, fret
 result = alg.solve(problem, seed=1)
 print(result.summary())
 ```
+
+## How it searches
+
+<figure markdown="span">
+  ![HS solutions on Rastrigin at four iterations, and its convergence](../assets/figures/algorithm-hs.png)
+  <figcaption>The current solutions of HS with default settings on the Rastrigin function in two dimensions (seed 1), after 1, 5, 20 and 50 iterations. The cross marks the global minimum. The right panel shows the error of the best solution against the evaluations.</figcaption>
+</figure>

@@ -133,6 +133,11 @@ ax.figure.savefig("convergence.png", dpi=150)
 | `labels` | one label per result (default: the algorithm names) |
 | `ax` | draw on existing matplotlib axes |
 
+<figure markdown="span">
+  ![Convergence of DE and PSO on Rastrigin](../assets/figures/convergence.svg)
+  <figcaption>The plot made by the code above: the error of the best solution of DE and PSO against the evaluations.</figcaption>
+</figure>
+
 Each function returns the matplotlib `Axes`, so the figure can be changed and saved as PNG, PDF or SVG. Three more functions, `band`, `boxes` and `rank_bars`, draw the results of many runs. [Experiment reports](experiments.md) use them.
 
 To draw a tour or the routes of a vehicle routing solution, use `ypea.problems.plot_tour` and `ypea.problems.plot_routes` (see [Test problems](test-problems.md)).

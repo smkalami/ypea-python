@@ -48,6 +48,11 @@ print(problem.name, problem.optimum, problem.vars)
 rastrigin_d10 0.0 [Real('x', shape=(10,))]
 ```
 
+<figure markdown="span">
+  ![Contour plots of twelve classic functions in two dimensions](../assets/figures/benchmarks.png)
+  <figcaption>Twelve of the classic functions in two dimensions (darker is lower). Sphere, Rosenbrock and Griewank are shown on a log scale, and some functions are zoomed in to show their local minima.</figcaption>
+</figure>
+
 ### Shift and rotation
 
 Many functions have their optimum at the origin, in the middle of the search space, which some algorithms find too easily. `shift=True` moves the optimum to a random point in the central 80 percent of the bounds, and `rotate=True` rotates the function around its optimum with a random orthogonal matrix, so the variables are no longer separable. Both are fixed by `seed`:

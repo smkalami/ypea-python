@@ -97,6 +97,19 @@ The problem compares solutions, so every algorithm handles constraints the same 
 
 The rules need no tuning. Two infeasible solutions with exactly the same violation are ordered by their objective values, a tie that Deb (2000) leaves open.
 
+```mermaid
+flowchart TB
+    Q{"Are both solutions feasible?"}
+    Q -- "both" --> O["The better objective value wins"]
+    Q -- "only one" --> F["The feasible one wins"]
+    Q -- "neither" --> V["The smaller total violation wins<br>(equal violations: the better objective value)"]
+```
+
+<figure markdown="span">
+  ![DE on a constrained problem with two variables](../assets/figures/constraints.svg)
+  <figcaption>DE with the feasibility rules on min (x - 2)² + (y - 1)² with x² ≤ y and x + y ≤ 2. The first population is mostly infeasible. After 8 iterations it has moved into the feasible region, and the best solution sits on its boundary at (1, 1), not at the unconstrained minimum (2, 1).</figcaption>
+</figure>
+
 **Scaling of the constraints.** Constraints often differ in size: a stress limit in megapascals and a length in meters. Added up raw, the largest one would decide every comparison. So, as Deb (2000) recommends, each constraint is scaled before the sum. By default (`constraint_scaling=True`) a run divides each constraint by its largest violation among its first solutions, and keeps these scales for the whole run, so comparisons stay consistent. Equalities are scaled the same way, after the inequalities.
 
 - The scales come from at least 20 solutions. When an algorithm starts with fewer (CMA-ES starts with one point, Nelder-Mead with d + 1, SA and HS with 10), the run first evaluates random solutions to make up 20. They count as evaluations, and they can become the best solution.

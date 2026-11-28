@@ -18,3 +18,10 @@ alg = ypea.ABC(max_iter=100, pop_size=100, onlooker_count=20, max_acceleration=0
 result = alg.solve(problem, seed=1)
 print(result.summary())
 ```
+
+## How it searches
+
+<figure markdown="span">
+  ![ABC solutions on Rastrigin at four iterations, and its convergence](../assets/figures/algorithm-abc.png)
+  <figcaption>The current solutions of ABC with default settings on the Rastrigin function in two dimensions (seed 1), after 1, 5, 20 and 50 iterations. The cross marks the global minimum. The right panel shows the error of the best solution against the evaluations.</figcaption>
+</figure>
